@@ -30,45 +30,61 @@ def apply_stabilizer(toric_model, row=int, col=int, operator=int):
     toric_model.step(action3)
     toric_model.step(action4)
 '''
-def test_apply_random_logical(qubit_matrix, size=int):
-    operator = np.random.randint(1,4)
-    if operator == 2:
-        layer = np.random.randint(2)
-        temp_qubit_matrix = test_apply_logical(qubit_matrix, size, layer, 1)
-        return test_apply_logical(temp_qubit_matrix, size, layer, 3)
-    else:
-        return test_apply_logical(qubit_matrix,size,np.random.randint(2), operator)
-    
 
-def test_apply_logical(qubit_matrix, size=int, layer=int , operator=int):
-    #  Applies a specific logical to the qubit matrix
-    index = np.random.randint(size)
-    qubit_matrix_layers = np.full(size, layer)
-    if operator == 1:
-        if layer == 0:
-            cols = np.arange(size)
-            rows = np.full(size, index)
-        if layer == 1:
-            rows = np.arange(size)
-            cols = np.full(size, index)
-    elif operator == 3:
-        if layer == 1:
-            cols = np.arange(size)
-            rows = np.full(size, index)
-        if layer == 0:
-            rows = np.arange(size)
-            cols = np.full(size, index)
+def apply_random_logical(qubit_matrix, size=int):
+    operator = np.random.randint(1,4) #  operator to use, 2 (Y) will make both X and Z in the same orientation
+    orientation = np.random.randint(0,2) #  0 - horizontal, 1 - vertical
 
-        # the operator matters as well.... we con only do X OR Z on each layer once at at time
-    
-    
-    old_operators = qubit_matrix[qubit_matrix_layers, rows, cols]
-    new_operators = rule_table[operator,old_operators]
+    if orientation == 0: #  Horizontal 
+        if operator == 2:
+            temp_qubit_matrix = apply_logical_horizontal(qubit_matrix,size,np.random.randint(size), 1)
+            return apply_logical_horizontal(temp_qubit_matrix,size,np.random.randint(size), 3)
+        else:
+            return apply_logical_horizontal(qubit_matrix,size,np.random.randint(size), operator)
+    elif orientation == 1: #  Vertical
+        if operator == 2:
+            temp_qubit_matrix = apply_logical_vertical(qubit_matrix,size,np.random.randint(size), 1)
+            return apply_logical_vertical(temp_qubit_matrix,size,np.random.randint(size), 3)
+        else:
+            return apply_logical_vertical(qubit_matrix,size,np.random.randint(size), operator)
 
-    result_qubit_matrix = np.copy(qubit_matrix)
-    result_qubit_matrix[qubit_matrix_layers, rows, cols] = new_operators
 
-    return result_qubit_matrix
+def apply_logical_vertical(qubit_matrix, size=int, col=int, operator=int): #col goes from 0 to size-1, operator is either 1 or 3, corresponding to x and z
+	if operator == 1: # makes sure the logical operator is applied on the correct layer, so that no syndromes are generated
+		layer = 1
+	else:  
+		layer = 0
+	
+	qubit_matrix_layers = np.full(size, layer, dtype=int)
+	rows = np.arange(size)
+	cols = np.full(size, col, dtype=int)
+
+	old_operators = qubit_matrix[qubit_matrix_layers, rows, cols]
+	new_operators = rule_table[operator][old_operators]
+
+	result_qubit_matrix = np.copy(qubit_matrix)
+	result_qubit_matrix[qubit_matrix_layers, rows, cols] = new_operators
+
+	return result_qubit_matrix
+
+def apply_logical_horizontal(qubit_matrix, size=int, row=int, operator=int): #col goes from 0 to size-1, operator is either 1 or 3, corresponding to x and z
+	if operator == 1: 
+		layer = 0
+	else:  
+		layer = 1
+	
+	qubit_matrix_layers = np.full(size, layer, dtype=int)
+	rows = np.full(size, row, dtype=int)
+	cols = np.arange(size)
+
+	old_operators = qubit_matrix[qubit_matrix_layers, rows, cols]
+	new_operators = rule_table[operator][old_operators]
+
+	result_qubit_matrix = np.copy(qubit_matrix)
+	result_qubit_matrix[qubit_matrix_layers, rows, cols] = new_operators
+
+	return result_qubit_matrix
+
 
 def test_apply_stabilizer(qubit_matrix, size=int, row=int, col=int, operator=int):
     # gives the resulting qubit error matrix from applying (row, col, operator) stabilizer
@@ -90,42 +106,6 @@ def test_apply_stabilizer(qubit_matrix, size=int, row=int, col=int, operator=int
     result_qubit_matrix[qubit_matrix_layers, rows, cols] = new_operators
 
     return result_qubit_matrix
-
-
-def apply_logical_vertical(qubit_matrix, size=int, col=int, operator=int): #col goes from 0 to size-1, operator is either 1 or 3, corresponding to x and z
-	if operator == 1: # makes sure the logical operator is applied on the correct layer, so that no syndromes are generated
-		layer = 1
-	else:  
-		layer = 0
-	
-	qubit_matrix_layers = np.zeros(size, dtype=int)+layer
-	rows = range(size)
-	cols = np.zeros(size, dtype=int)+col
-	old_operators = qubit_matrix[qubit_matrix_layers, rows, cols]
-	new_operators = rule_table[operator][old_operators]
-
-	result_qubit_matrix = np.copy(qubit_matrix)
-	result_qubit_matrix[qubit_matrix_layers, rows, cols] = new_operators
-
-	return result_qubit_matrix
-
-def apply_logical_horizontal(qubit_matrix, size=int, row=int, operator=int): #col goes from 0 to size-1, operator is either 1 or 3, corresponding to x and z
-	if operator == 1: 
-		layer = 0
-	else:  
-		layer = 1
-	
-	qubit_matrix_layers = np.zeros(size, dtype=int)+layer
-	
-	rows = np.zeros(size, dtype=int)+row
-	cols = range(size)
-	old_operators = qubit_matrix[qubit_matrix_layers, rows, cols]
-	new_operators = rule_table[operator][old_operators]
-
-	result_qubit_matrix = np.copy(qubit_matrix)
-	result_qubit_matrix[qubit_matrix_layers, rows, cols] = new_operators
-
-	return result_qubit_matrix
 
 
 def test_apply_random_stabilizer(qubit_matrix, size):
@@ -172,7 +152,7 @@ def error_ratio(qubit_matrix_current, qubit_matrix_next, p=float):
 def permute_error(qubit_matrix, size, p, p_logical):
     
     if np.random.rand() < p_logical:
-        new_matrix = test_apply_random_logical(qubit_matrix, size)
+        new_matrix = apply_random_logical(qubit_matrix, size)
     else:
         new_matrix = test_apply_random_stabilizer(qubit_matrix, size)
 
