@@ -2,6 +2,17 @@
     This class implements the MCMC sampling algorithm for probability based reward scheme.
     Defines rule_table
 
+## apply_random_logical(qubit_matrix, size=int)
+    A function that applies a random logical operator and returns the new qubit_matrix
+
+## apply_logical_vertical(qubit_matrix, size=int, col=int, operator=int)
+    A function that applies a specified logical operator (X or Z) to specified column
+    and returns the new qubit_matrix
+
+## apply_logical_vertical(qubit_matrix, size=int, row=int, operator=int)
+    A function that applies a specified logical operator (X or Z) to specified row
+    and returns the new qubit_matrix
+
 ## apply_stabilizer(toric_model, row=int, col=int, operator=int)
     A function that saves stabilizers on toric_model
 
