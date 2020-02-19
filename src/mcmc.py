@@ -30,6 +30,45 @@ def apply_stabilizer(toric_model, row=int, col=int, operator=int):
     toric_model.step(action3)
     toric_model.step(action4)
 '''
+def test_apply_random_logical(qubit_matrix, size=int):
+    operator = np.random.randint(1,4)
+    if operator == 2:
+        layer = np.random.randint(2)
+        temp_qubit_matrix = test_apply_logical(qubit_matrix, size, layer, 1)
+        return test_apply_logical(temp_qubit_matrix, size, layer, 3)
+    else:
+        return test_apply_logical(qubit_matrix,size,np.random.randint(2), operator)
+    
+
+def test_apply_logical(qubit_matrix, size=int, layer=int , operator=int):
+    #  Applies a specific logical to the qubit matrix
+    index = np.random.randint(size)
+    qubit_matrix_layers = np.full(size, layer)
+    if operator == 1:
+        if layer == 0:
+            cols = np.arange(size)
+            rows = np.full(size, index)
+        if layer == 1:
+            rows = np.arange(size)
+            cols = np.full(size, index)
+    elif operator == 3:
+        if layer == 1:
+            cols = np.arange(size)
+            rows = np.full(size, index)
+        if layer == 0:
+            rows = np.arange(size)
+            cols = np.full(size, index)
+
+        # the operator matters as well.... we con only do X OR Z on each layer once at at time
+    
+    
+    old_operators = qubit_matrix[qubit_matrix_layers, rows, cols]
+    new_operators = rule_table[operator,old_operators]
+
+    result_qubit_matrix = np.copy(qubit_matrix)
+    result_qubit_matrix[qubit_matrix_layers, rows, cols] = new_operators
+
+    return result_qubit_matrix
 
 def test_apply_stabilizer(qubit_matrix, size=int, row=int, col=int, operator=int):
     # gives the resulting qubit error matrix from applying (row, col, operator) stabilizer
@@ -94,8 +133,13 @@ def error_ratio(qubit_matrix_current, qubit_matrix_next, p=float):
     return ratio
 
 
-def permute_error(qubit_matrix, size, p):
-    new_matrix = test_apply_random_stabilizer(qubit_matrix, size)
+def permute_error(qubit_matrix, size, p, p_logical):
+    
+    if np.random.rand() < p_logical:
+        new_matrix = test_apply_random_logical(qubit_matrix, size)
+    else:
+        new_matrix = test_apply_random_stabilizer(qubit_matrix, size)
+
     r = error_ratio(qubit_matrix, new_matrix, p)
     if np.random.rand() < r:
         return new_matrix
