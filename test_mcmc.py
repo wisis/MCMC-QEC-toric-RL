@@ -17,6 +17,7 @@ def main():
 
     qubit_matrix = np.copy(toric.qubit_matrix)
     p = 0.1
+    p_logical = 0.5
 
     #for i in range(100):
     #    qubit_matrix = permute_error(qubit_matrix, size, p)
@@ -28,7 +29,7 @@ def main():
         except:
             n = 1
         for i in range(n):
-            qubit_matrix = permute_error(qubit_matrix, size, p)
+            qubit_matrix = permute_error(qubit_matrix, size, p, p_logical)
             toric.qubit_matrix = np.copy(qubit_matrix)
         toric.plot_toric_code(toric.next_state, 'Chain_0')
         res = input('plot? ')
