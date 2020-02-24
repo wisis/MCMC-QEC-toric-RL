@@ -1,5 +1,6 @@
 import numpy as np
 import random as rand
+import copy
 
 from .toric_model import Toric_code
 from .util import Action
@@ -10,17 +11,56 @@ rule_table = np.array(([[0, 1, 2, 3], [1, 0, 3, 2], [2, 3, 0, 1], [3, 2, 1, 0]])
                                                                                                 # pauli_z = 3
 
 class Chain:
-    def __init__(self, size, p, p_logical):
+    def __init__(self, size, p):
         self.toric = Toric_code(size)
         self.size = size
         self.p = p
-        self.p_logical = p_logical
+        self.p_logical = 0
     
     def permute_error(self): # eventually rewrite to remove middle steps.
         self.toric.qubit_matrix = permute_error(self.toric.qubit_matrix, self.size, self.p, self.p_logical)
 
     def plot(self, name):
         self.toric.plot_toric_code(self.toric.next_state, name)
+
+    def set_p_logical(self, p_logical):
+        self.p_logical = p_logical
+
+    def get_p(self):
+        return self.p
+    
+    def get_qubit_matrix(self):
+        return self.toric.qubit_matrix
+
+    def get_toric(self):
+        return self.toric
+
+    def set_toric(self, new_toric):
+        self.toric = copy.deepcopy(new_toric)
+
+def r_flip(chain_lo, chain_hi): # flips always? ...
+    p_lo = chain_lo.get_p()
+    p_hi = chain_hi.get_p()
+
+    ne_lo = np.count_nonzero(chain_lo.get_qubit_matrix())
+    ne_hi = np.count_nonzero(chain_hi.get_qubit_matrix())
+    r = ((p_lo / p_hi) * ((1 - p_hi) / (1 - p_lo))) ** (ne_hi - ne_lo)
+    if r > 0:
+        # flip them
+        print('attempting flip')
+        temp = chain_lo.get_toric()
+        chain_lo.set_toric(chain_hi.get_toric())
+        chain_hi.set_toric(temp)
+        return r
+    elif rand.random() < r:
+            # flip them
+            print('attempting flip')
+            temp = chain_lo.get_toric()
+            chain_lo.set_toric(chain_hi.get_toric())
+            chain_hi.set_toric(temp)
+            return r
+    return r
+
 
 '''
 def apply_stabilizer(toric_model, row=int, col=int, operator=int):

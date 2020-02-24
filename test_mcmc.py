@@ -39,14 +39,14 @@ def main():
 
 def main2():
     size = 3
-    chain_init = Chain(size, 0.1, 0.5)
+    toric_init = Toric_code(size)
     
     init_errors = np.array([[1, 0, 2, 1], [1, 1, 1, 1], [1, 2, 2, 1]])
     for arr in init_errors:
         print(arr)
         action = Action(position = arr[:3], action = arr[3])
-        chain_init.toric.step(action)
-        chain_init.plot('Chain_init')
+        toric_init.step(action)
+        toric_init.plot_toric_code(toric_init.next_state,'Chain_init')
     #chain0.toric.plot_toric_code(toric.next_state, 'Chain_0')
 
     # Create N^2 chains (Toric_codes)
@@ -56,19 +56,19 @@ def main2():
 
 
     # apply the random stabilizers (not really needed evenutally)
-    apply_n_independent_random_stabilizers(chain_init.toric, 1000)
+    # apply_n_independent_random_stabilizers(toric_init, 1000)
 
 
     # create the diffrent chains in an array
     N = size
-    chains = []
-    p_start = 0.1
+    ladder = []
+    p_start = 0.1  # what should this really be???
     p_end = 0.75
 
     for i in range(N):
-        chains.append(Chain(size,p_start + ((p_end - p_start) / (N - 1)) * i, 0.5)) # fix p eventually
-        chains[i].toric = copy.deepcopy(chain_init.toric) # give all the same initial state
-
+        ladder.append(Chain(size, p_start + ((p_end - p_start) / (N - 1)) * i))
+        ladder[i].toric = copy.deepcopy(toric_init)  # give all the same initial state
+    ladder[N-1].set_p_logical(0.75)  # set top chain as the only on where logicals happen
 
     res = input('Number of iterations? "n" to quit. Ans: ')
     while not res == 'n':
@@ -78,8 +78,14 @@ def main2():
             n = 1
         for i in range(N):
             for _ in range(n):
-                chains[i].permute_error()
-            chains[i].plot('Chain_' + str(i))
+                ladder[i].permute_error()
+            ladder[i].plot('Chain_' + str(i))
+            # now attempt flips
+        for j in reversed(range(N-1)):  # correct order, need to walk up in ladder
+            result = r_flip(ladder[j],ladder[j+1])
+            print(str(j) + ' and ' + str(j+1) + ' flipped?:' + str(result))
+        
+            
         res = input('Number of iterations? "n" to quit. Ans: ')
     
 
