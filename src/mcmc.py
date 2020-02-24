@@ -4,10 +4,23 @@ import random as rand
 from .toric_model import Toric_code
 from .util import Action
 
-rule_table = np.array(([[0, 1, 2, 3], [1, 0, 3, 2], [2, 3, 0, 1], [3, 2, 1, 0]]), dtype=int)   # Identity = 0
-                                                                                # pauli_x = 1
-                                                                                # pauli_y = 2
-                                                                                # pauli_z = 3
+rule_table = np.array(([[0, 1, 2, 3], [1, 0, 3, 2], [2, 3, 0, 1], [3, 2, 1, 0]]), dtype=int)    # Identity = 0
+                                                                                                # pauli_x = 1
+                                                                                                # pauli_y = 2
+                                                                                                # pauli_z = 3
+
+class Chain:
+    def __init__(self, size, p, p_logical):
+        self.toric = Toric_code(size)
+        self.size = size
+        self.p = p
+        self.p_logical = p_logical
+    
+    def permute_error(self): # eventually rewrite to remove middle steps.
+        self.toric.qubit_matrix = permute_error(self.toric.qubit_matrix, self.size, self.p, self.p_logical)
+
+    def plot(self, name):
+        self.toric.plot_toric_code(self.toric.next_state, name)
 
 '''
 def apply_stabilizer(toric_model, row=int, col=int, operator=int):
