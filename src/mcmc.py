@@ -10,14 +10,15 @@ rule_table = np.array(([[0, 1, 2, 3], [1, 0, 3, 2], [2, 3, 0, 1], [3, 2, 1, 0]])
                                                                                                 # pauli_y = 2
                                                                                                 # pauli_z = 3
 
+
 class Chain:
     def __init__(self, size, p):
         self.toric = Toric_code(size)
         self.size = size
         self.p = p
         self.p_logical = 0
-    
-    def permute_error(self): # eventually rewrite to remove middle steps.
+
+    def permute_error(self):  # eventually rewrite to remove middle steps.
         self.toric.qubit_matrix = permute_error(self.toric.qubit_matrix, self.size, self.p, self.p_logical)
 
     def plot(self, name):
@@ -28,39 +29,37 @@ class Chain:
 
     def get_p(self):
         return self.p
-    
+
     def get_qubit_matrix(self):
         return self.toric.qubit_matrix
 
     def get_toric(self):
-        return copy.deepcopy(self.toric)
+        return self.toric
 
     def set_toric(self, new_toric):
-        self.toric = copy.deepcopy(new_toric)
+        # self.toric = copy.deepcopy(new_toric) # tror inte att man behöver en deepcopy här, men har kvar som kommentar om det krågnlar?
+        self.toric = new_toric
 
-def r_flip(chain_lo, chain_hi): # flips always? ...
+
+def r_flip(chain_lo, chain_hi):
     p_lo = chain_lo.get_p()
     p_hi = chain_hi.get_p()
 
     ne_lo = np.count_nonzero(chain_lo.get_qubit_matrix())
     ne_hi = np.count_nonzero(chain_hi.get_qubit_matrix())
+    # compute eqn (5) in high threshold paper
     r = ((p_lo / p_hi) * ((1 - p_hi) / (1 - p_lo))) ** (ne_hi - ne_lo)
+
     if r > 1:
-        # flip them
-        print('flipped')
+        # flip them if r > 1
         temp = chain_lo.get_toric()
         chain_lo.set_toric(chain_hi.get_toric())
         chain_hi.set_toric(temp)
-        return r
     elif rand.random() < r:
-            # flip them
-            print('flipped')
-            temp = chain_lo.get_toric()
-            chain_lo.set_toric(chain_hi.get_toric())
-            chain_hi.set_toric(temp)
-            return r
-    print('stayed')
-    return r
+        # flip them with prob r if r < 1
+        temp = chain_lo.get_toric()
+        chain_lo.set_toric(chain_hi.get_toric())
+        chain_hi.set_toric(temp)
 
 
 '''
