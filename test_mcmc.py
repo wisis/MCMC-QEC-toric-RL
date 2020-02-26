@@ -6,7 +6,7 @@ def main():
     size = 3
     toric = Toric_code(size)
 
-    init_errors = np.array([[1, 0, 2, 1], [1, 1, 1, 1], [1, 2, 2, 1]])
+    init_errors = np.array([[1, 0, 2, 1], [1, 0, 1, 1], [1, 0, 3, 1], [[1, 0, 4, 1]], [[1, 0, 0, 1]]])
     for arr in init_errors:
         print(arr)
         action = Action(position = arr[:3], action = arr[3])
@@ -35,18 +35,18 @@ def main():
         toric.plot_toric_code(toric.next_state, 'Chain_0')
         res = input('plot? ')
     #print("vertex: " + str(toric.next_state[0, :, :]))
-    #print("plaquette: " + str(toric.next_state[1, :, :]))
+    #print("plaquette: " + str(toric.next_state[1, :, :])) 
 
 def main2():
-    size = 3
+    size = 5
     toric_init = Toric_code(size)
     
-    init_errors = np.array([[1, 0, 2, 1], [1, 1, 1, 1], [1, 2, 2, 1]])
+    init_errors = np.array([[1, 0, 1, 1], [1, 2, 1, 1], [1, 3, 1, 1], [1, 4, 1, 1], [1, 1, 1, 1]])
     for arr in init_errors:
         print(arr)
         action = Action(position = arr[:3], action = arr[3])
         toric_init.step(action)
-        toric_init.plot_toric_code(toric_init.next_state,'Chain_init')
+    toric_init.plot_toric_code(toric_init.next_state,'Chain_init')
     #chain0.toric.plot_toric_code(toric.next_state, 'Chain_0')
 
     # Create N^2 chains (Toric_codes)
@@ -60,7 +60,7 @@ def main2():
 
 
     # create the diffrent chains in an array
-    N = size
+    N = 9
     ladder = []
     p_start = 0.1  # what should this really be???
     p_end = 0.75
@@ -72,20 +72,23 @@ def main2():
 
     res = input('Number of iterations? "n" to quit. Ans: ')
     while not res == 'n':
-        try:
-            n = int(res)
-        except:
-            n = 1
-        for i in range(N):
-            for _ in range(n):
-                ladder[i].permute_error()
-            ladder[i].plot('Chain_' + str(i))
+        for _ in range(1000):
+            try:
+                n = int(res)
+            except:
+                n = 1
+            # run mcmc
+            for i in range(N):
+                for _ in range(n):
+                    ladder[i].permute_error()
             # now attempt flips
-        for j in reversed(range(N-1)):  # correct order, need to walk up in ladder
-            result = r_flip(ladder[j],ladder[j+1])
-            print(str(j) + ' and ' + str(j+1) + ' flipped?:' + str(result))
-        
+            print('-------')
+            for j in reversed(range(N-1)):
+                result = r_flip(ladder[j],ladder[j+1])
+            # plot
             
+        for i in range(N):
+                ladder[i].plot('Chain_' + str(i))
         res = input('Number of iterations? "n" to quit. Ans: ')
     
 

@@ -33,7 +33,7 @@ class Chain:
         return self.toric.qubit_matrix
 
     def get_toric(self):
-        return self.toric
+        return copy.deepcopy(self.toric)
 
     def set_toric(self, new_toric):
         self.toric = copy.deepcopy(new_toric)
@@ -45,20 +45,21 @@ def r_flip(chain_lo, chain_hi): # flips always? ...
     ne_lo = np.count_nonzero(chain_lo.get_qubit_matrix())
     ne_hi = np.count_nonzero(chain_hi.get_qubit_matrix())
     r = ((p_lo / p_hi) * ((1 - p_hi) / (1 - p_lo))) ** (ne_hi - ne_lo)
-    if r > 0:
+    if r > 1:
         # flip them
-        print('attempting flip')
+        print('flipped')
         temp = chain_lo.get_toric()
         chain_lo.set_toric(chain_hi.get_toric())
         chain_hi.set_toric(temp)
         return r
     elif rand.random() < r:
             # flip them
-            print('attempting flip')
+            print('flipped')
             temp = chain_lo.get_toric()
             chain_lo.set_toric(chain_hi.get_toric())
             chain_hi.set_toric(temp)
             return r
+    print('stayed')
     return r
 
 
