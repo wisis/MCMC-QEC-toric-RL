@@ -222,3 +222,49 @@ def permute_error(qubit_matrix, size, p, p_logical):
 def init_error(toric, qubit_matrix):
     toric.qubit_matrix = np.copy(qubit_matrix)
     toric.syndrom('next_state')
+
+
+def define_equivalence_class(qubit_matrix,size):
+#checks odd and even errors in each layer
+#gives a combination of four numbers corresponding to an equivalence class
+
+    #checks odd or even x-errors in first layer
+    x1prov=np.count_nonzero(qubit_matrix[0]==1)
+    #checks odd or even z-errors in first layer
+    z1prov=np.count_nonzero(qubit_matrix[0]==3)
+    #checks odd or even y-erros in first layer and adds them to total number of x/z errors in first layer
+    y1prov=np.count_nonzero(qubit_matrix[0]==2)
+    x1=x1prov+y1prov
+    z1=z1prov+y1prov
+
+
+    #checks odd or even x-errors in second layer
+    x2prov=np.count_nonzero(qubit_matrix[1]==1)
+    #checks odd or even z-errors in second layer
+    z2prov=np.count_nonzero(qubit_matrix[1]==3)
+    #checks odd or even y-erros in second layer and adds them to total number of x/z errors in second layer
+    y2prov=np.count_nonzero(qubit_matrix[1]==2)
+    x2=x2prov+y2prov
+    z2=z2prov+y2prov
+    # stores whether there was an odd or even number of errors
+    if x1 % 2 == 0:
+        x1=0
+    else:
+        x1=1
+    
+    if z1 % 2 == 0:
+        z1=0
+    else:
+        z1=1
+    
+    if x2 % 2 == 0:
+        x2=0
+    else:
+        x2=1
+    if z2 % 2 == 0:
+        z2=0
+    else:
+        z2=1
+    Enumb=x1+z1*2+x2*4+z2*8
+    return Enumb
+    
