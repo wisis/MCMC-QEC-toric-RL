@@ -4,6 +4,7 @@ import numpy as np
 import copy
 import pandas as pd
 
+
 def main():
     size = 5
     toric_init = Toric_code(size)
@@ -28,7 +29,7 @@ def main():
     tops0 = 0
     SEQ = 2
     TOPS = 5
-    tol = 0.1
+    eps = 0.1
     convergence_reached = 0
     nbr_errors_bottom_chain = []
     ec_frequency = []
@@ -73,10 +74,11 @@ def main():
                     tops0 += 1
                     ladder[0].flag = 0
                 r_flip(ladder[i], ladder[i + 1])
-            
+
+            #  Konvergenskriterium 1 i papper
             temp = np.count_nonzero(ladder[0].toric.qubit_matrix)
             nbr_errors_bottom_chain.append(temp)  # vill man räkna y som två fel?
-            if tops0>= TOPS:
+            if tops0 >= TOPS:
                 second_quarter = nbr_errors_bottom_chain[(len(nbr_errors_bottom_chain) // 4): (len(nbr_errors_bottom_chain) // 4) * 2]
                 fourth_quarter = nbr_errors_bottom_chain[(len(nbr_errors_bottom_chain) // 4) * 3: (len(nbr_errors_bottom_chain) // 4) * 4]
                 Average_second_quarter = sum(second_quarter) / (len(second_quarter))
@@ -84,9 +86,9 @@ def main():
                 error = abs(Average_second_quarter - Average_fourth_quarter)
                 if convergence_reached == 1:
                     ec_frequency.append(define_equivalence_class(ladder[0].toric.qubit_matrix))
-                if error > tol:
-                    tops0 == TOPS
-                if tops0 == tops0+ SEQ:
+                if error > eps:
+                    tops0 = TOPS
+                if tops0 == TOPS + SEQ:
                     if convergence_reached == 0:
                         print('Convergence achieved.')
                     convergence_reached = 1
@@ -124,10 +126,14 @@ def saveData(init_qubit_matrix, distr, params):
     #df = pd.DataFrame({ 'qubit_matrix': init_qubit_matrix,
     ##                    'distr': distr,
      #                   'params': params})
+   file_path=os.path.join(os.getcwd(),
+                       "data",
+                       'df.csv'))
 
-    df = pd.read_pickle('df.csv')
+
+    df = pd.read_pickle(file_path)
     df = df.append(pd.DataFrame([[init_qubit_matrix, distr, params]]))
-    df.to_pickle('df.csv') # går att använda json https://stackoverflow.com/questions/48428100/save-pandas-dataframe-with-numpy-arrays-column
+    df.to_pickle(file_path) #  går att använda json https://stackoverflow.com/questions/48428100/save-pandas-dataframe-with-numpy-arrays-column
     
     # packa upp
     df = pd.read_pickle('df.csv')
