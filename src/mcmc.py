@@ -19,6 +19,7 @@ class Chain:
         self.size = size
         self.p = p
         self.p_logical = 0
+        self.flag = 0
 
     def update_chain(self):
         if rand.random() < self.p_logical:
@@ -40,22 +41,21 @@ class Chain:
         self.toric.syndrom('next_state')
         self.toric.plot_toric_code(self.toric.next_state, name)
 
-
 def r_flip(chain_lo, chain_hi):
     p_lo = chain_lo.p
     p_hi = chain_hi.p
-
     ne_lo = np.count_nonzero(chain_lo.toric.qubit_matrix)
     ne_hi = np.count_nonzero(chain_hi.toric.qubit_matrix)
     # compute eqn (5) in high threshold paper
     r = ((p_lo / p_hi) * ((1 - p_hi) / (1 - p_lo))) ** (ne_hi - ne_lo)
-
     if rand.random() < r:
         # flip them with prob r if r < 1
         temp = chain_lo.toric
         chain_lo.toric = chain_hi.toric
         chain_hi.toric = temp
-
+        tempflag = chain_lo.flag
+        chain_lo.flag = chain_hi.flag
+        chain_hi.flag = tempflag
 
 def apply_random_logical(qubit_matrix):
     size = qubit_matrix.shape[1]
