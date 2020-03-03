@@ -1,6 +1,7 @@
 import numpy as np
 import random as rand
 import copy
+from numba import jit, prange
 
 from .toric_model import Toric_code
 from .util import Action
@@ -117,15 +118,17 @@ def apply_logical_horizontal(qubit_matrix, row=int, operator=int):  # col goes f
     return result_qubit_matrix
 
 
+@jit(nopython=True)#, parallel=True)
 def apply_stabilizer(qubit_matrix, row=int, col=int, operator=int):
     # gives the resulting qubit error matrix from applying (row, col, operator) stabilizer
     # doesn't update input qubit_matrix
     size = qubit_matrix.shape[1]
     if operator == 1: # 33.8% av tiden vs 54.8% av tiden jämfört med gamla, 62% av tiden med nya metoden
-        '''
+        
         qubit_matrix_layers = np.array([1, 1, 0, 0])
         rows = np.array([row, row, row, (row - 1) % size])
         cols = np.array([col, (col - 1) % size, col, col])
+        
         '''
         # undviker att assigna massa saker och sparar på så sätt tid.
         result_qubit_matrix = np.copy(qubit_matrix)
@@ -133,23 +136,36 @@ def apply_stabilizer(qubit_matrix, row=int, col=int, operator=int):
         result_qubit_matrix[1, row, (col - 1) % size] = rule_table[1][qubit_matrix[1, row, (col - 1) % size]]
         result_qubit_matrix[0, row, col] =              rule_table[1][qubit_matrix[0, row, col]]
         result_qubit_matrix[0, (row - 1) % size, col] = rule_table[1][qubit_matrix[0, (row - 1) % size, col]]
+        '''
 
     elif operator == 3: 
-        '''qubit_matrix_layers = np.array([1, 0, 0, 1])
+        qubit_matrix_layers = np.array([1, 0, 0, 1])
         rows = np.array([row, row, row, (row + 1) % size])
         cols = np.array([col, col, (col + 1) % size, col])
 
+        '''
         old_operators = qubit_matrix[qubit_matrix_layers, rows, cols]
         new_operators = rule_table[operator][old_operators]
 
         result_qubit_matrix = np.copy(qubit_matrix)
-        result_qubit_matrix[qubit_matrix_layers, rows, cols] = new_operators'''
+        result_qubit_matrix[qubit_matrix_layers, rows, cols] = new_operators
+        '''
+
+        '''
         # undviker att assigna massa saker och sparar på så sätt tid.
         result_qubit_matrix = np.copy(qubit_matrix)
         result_qubit_matrix[1, row, col] =              rule_table[3][qubit_matrix[1, row, col]]
         result_qubit_matrix[0, row, col] =              rule_table[3][qubit_matrix[0, row, col]]
         result_qubit_matrix[0, row, (col + 1) % size] = rule_table[3][qubit_matrix[0, row, (col + 1) % size]]
         result_qubit_matrix[1, (row - 1) % size, col] = rule_table[3][qubit_matrix[1, (row - 1) % size, col]]
+        '''
+
+    result_qubit_matrix = np.copy(qubit_matrix)
+
+    #for i in prange(4):
+    for i in range(4):
+        result_qubit_matrix[qubit_matrix_layers[i], rows[i], cols[i]] = rule_table[operator][qubit_matrix[qubit_matrix_layers[i], rows[i], cols[i]]]
+
     return result_qubit_matrix
 
 
