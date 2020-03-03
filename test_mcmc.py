@@ -31,7 +31,6 @@ def main():
     convergence_reached = 0
     nbr_errors_bottom_chain = []
     ec_frequency = []
-    min_quarter_width = 0
 
     # test random error initialisation
     toric_init.generate_random_error(p_start)
@@ -73,25 +72,23 @@ def main():
                     tops0 += 1
                     ladder[0].flag = 0
                 r_flip(ladder[i], ladder[i + 1])
+            
+            temp = np.count_nonzero(ladder[0].toric.qubit_matrix)
+            nbr_errors_bottom_chain.append(temp)  # vill man räkna y som två fel?
             if tops0>= TOPS:
-                temp = np.count_nonzero(ladder[0].toric.qubit_matrix)
-                nbr_errors_bottom_chain.append(temp)  # vill man räkna y som två fel?
-                min_quarter_width += 1
-                if min_quarter_width > 10:
-                    second_quarter = nbr_errors_bottom_chain[(len(nbr_errors_bottom_chain) // 4): (len(nbr_errors_bottom_chain) // 4) * 2]
-                    fourth_quarter = nbr_errors_bottom_chain[(len(nbr_errors_bottom_chain) // 4) * 3: (len(nbr_errors_bottom_chain) // 4) * 4]
-                    Average_second_quarter = sum(second_quarter) / (len(second_quarter))
-                    Average_fourth_quarter = sum(fourth_quarter) / (len(fourth_quarter))
-                    error = abs(Average_second_quarter - Average_fourth_quarter)
-                    if convergence_reached == 1:
-                        ec_frequency.append(define_equivalence_class(ladder[0].toric.qubit_matrix))
-                    if error > tol:
-                        tops0== TOPS
-                        ec_frequency.append(define_equivalence_class(ladder[0].toric.qubit_matrix))
-                    if tops0== tops0+ SEQ:
-                        if convergence_reached == 0:
-                            print('Convergence achieved.')
-                        convergence_reached = 1
+                second_quarter = nbr_errors_bottom_chain[(len(nbr_errors_bottom_chain) // 4): (len(nbr_errors_bottom_chain) // 4) * 2]
+                fourth_quarter = nbr_errors_bottom_chain[(len(nbr_errors_bottom_chain) // 4) * 3: (len(nbr_errors_bottom_chain) // 4) * 4]
+                Average_second_quarter = sum(second_quarter) / (len(second_quarter))
+                Average_fourth_quarter = sum(fourth_quarter) / (len(fourth_quarter))
+                error = abs(Average_second_quarter - Average_fourth_quarter)
+                if convergence_reached == 1:
+                    ec_frequency.append(define_equivalence_class(ladder[0].toric.qubit_matrix))
+                if error > tol:
+                    tops0 == TOPS
+                if tops0 == tops0+ SEQ:
+                    if convergence_reached == 0:
+                        print('Convergence achieved.')
+                    convergence_reached = 1
             # record current equivalence class in bottom layer
 
             bottom_equivalence_classes[j] = define_equivalence_class(ladder[0].toric.qubit_matrix)
