@@ -46,7 +46,7 @@ def main():
             steps = 1
             iters = 1
 
-        error_samples = np.zeros(iters, dtype=int)
+        error_samples = np.zeros(steps, dtype=int)
 
         for j in range(steps):
             # run mcmc for each chain [steps] times
@@ -57,6 +57,7 @@ def main():
             for i in reversed(range(N - 1)):
                 r_flip(ladder[i], ladder[i + 1])
             # record current equivalence class in bottom layer
+
             error_samples[j] = define_equivalence_class(ladder[0].toric.qubit_matrix)
 
         # plot all chains
