@@ -62,11 +62,6 @@ def parallel_tempering(init_toric, Nc=None, p=0.1, SEQ=2, TOPS=10, eps=0.1, step
     eq_count = np.zeros(16)
     eq_class_distr = []
 
-
-    # test random error initialisation
-    init_toric.generate_random_error(p)
-    init_toric.qubit_matrix = apply_stabilizers_uniform(init_toric.qubit_matrix)
-
     # plot initial error configuration
     init_toric.plot_toric_code(init_toric.next_state, 'Chain_init')
 
