@@ -48,10 +48,10 @@ def main():
 
         error_samples = np.zeros(iters, dtype=int)
 
-        for j in range(iters):
+        for j in range(steps):
             # run mcmc for each chain [steps] times
             for i in range(N):
-                for _ in range(steps):
+                for _ in range(iters):
                     ladder[i].update_chain()
             # now attempt flips from the top down
             for i in reversed(range(N - 1)):

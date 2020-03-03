@@ -142,9 +142,9 @@ def apply_stabilizer(qubit_matrix, row=int, col=int, operator=int):
 def apply_random_stabilizer(qubit_matrix):
     # select random coordinates where to apply operator
     size = qubit_matrix.shape[1]
-    row = np.random.randint(0, size)  # gives int in [0, d-1]
-    col = np.random.randint(0, size)
-    operator = np.random.randint(0, 2)  # we only care about X and Z, and Y is represented by 2. Therefore:
+    row = int(rand.random() * size)
+    col = int(rand.random() * size)
+    operator = int(rand.random() * 2)  # we only care about X and Z, and Y is represented by 2. Therefore:
     if operator == 0:
         operator = 3
     return apply_stabilizer(qubit_matrix, row, col, operator)
