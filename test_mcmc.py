@@ -2,6 +2,7 @@ from src.toric_model import Toric_code
 from src.mcmc import *
 import numpy as np
 import copy
+import pandas as pd
 
 def main():
     size = 5
@@ -72,9 +73,38 @@ def main():
         print('Equivalence classes: \n', np.arange(16))
         print('Count: \n', equivalence_class_count)
 
+        saveData(toric_init.qubit_matrix, equivalence_class_count, 'hej')
+
         steps = input('How many steps? Ans: ')
         iters = input('How many iterations for each step? Ans: ')
 
 
-if __name__ == "__main__":
+def saveData(init_qubit_matrix, distr, params):
+    # Sparar data från XXX antal mcmc körningar (typ 10000 steps/till konvergens med 10 iters)
+    # En entry här motsvarar en träningsentry och innehåller därför följande:
+    #  * Initial felkedja, denna krävs för att vi ska kunna köra DRL algoritmen på en faktisk felkedja.
+    #  //Syndrom behövs INTE
+    #  * Fördelning över ekvivalensklasser, typ 16array med fördelningssiffror, behövs som input till reward() för att
+    #           se om vår lösningskedja tillhör rätt ekvivalensklass
+    #  * Använda parametrar för generering av datapunkt
+
+    #df = pd.DataFrame({ 'qubit_matrix': init_qubit_matrix,
+    ##                    'distr': distr,
+     #                   'params': params})
+
+    df = pd.read_pickle('df.csv')
+    df = df.append(pd.DataFrame([[init_qubit_matrix, distr, params]]))
+    df.to_pickle('df.csv') # går att använda json https://stackoverflow.com/questions/48428100/save-pandas-dataframe-with-numpy-arrays-column
+    
+    # packa upp
+    df = pd.read_pickle('df.csv')
+    for index, loaded_qubit_matrix, loaded_distr, loaded_params in df.itertuples():
+        print('Now printing df:')
+        print('Index: ' + str(index))
+        print(loaded_qubit_matrix)
+        print(loaded_distr)
+        print(loaded_params)
+   
+
+if __name__ == '__main__':
     main()
