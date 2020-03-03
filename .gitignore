@@ -3,3 +3,4 @@ network/
 plots/
 .vscode
 src/__pycache__
+*.lprof

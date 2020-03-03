@@ -20,7 +20,7 @@ class Chain:
         self.p_logical = 0
 
     def update_chain(self):
-        if np.random.rand() < self.p_logical:
+        if rand.random() < self.p_logical:
             new_matrix = apply_random_logical(self.toric.qubit_matrix)
         else:
             new_matrix = apply_random_stabilizer(self.toric.qubit_matrix)
@@ -32,7 +32,7 @@ class Chain:
 
         r = ((self.p / 3.0) / (1.0 - self.p)) ** (qubit_errors_new - qubit_errors_current)
 
-        if np.random.rand() < r:
+        if rand.random() < r:
             self.toric.qubit_matrix = new_matrix
 
     def plot(self, name):
@@ -58,19 +58,19 @@ def r_flip(chain_lo, chain_hi):
 
 def apply_random_logical(qubit_matrix):
     size = qubit_matrix.shape[1]
-    operator = np.random.randint(1, 4)  # operator to use, 2 (Y) will make both X and Z on the same layer
-    orientation = np.random.randint(0, 2)  # 0 - horizontal, 1 - vertical
+    operator = int(rand.random() * 3) + 1  # operator to use, 2 (Y) will make both X and Z on the same layer
+    orientation = int(rand.random() * 2)  # 0 - horizontal, 1 - vertical
 
     if orientation == 0:  # Horizontal
         if operator == 2:
-            order = np.random.randint(0, 2)  # make sure that we randomize which operator goes verically and horizontally
+            order = int(rand.random() * 2)  # make sure that we randomize which operator goes verically and horizontally
             temp_qubit_matrix = apply_logical_horizontal(qubit_matrix, np.random.randint(size), (order * 2 - 1) % 4)
             return apply_logical_horizontal(temp_qubit_matrix, np.random.randint(size), (order * 2 + 1) % 4)
         else:
             return apply_logical_horizontal(qubit_matrix, np.random.randint(size), operator)
     elif orientation == 1:  # Vertical
         if operator == 2:
-            order = np.random.randint(0, 2)  # make sure that we randomize which operator goes verically and horizontally
+            order = int(rand.random() * 2)  # make sure that we randomize which operator goes verically and horizontally
             temp_qubit_matrix = apply_logical_vertical(qubit_matrix, np.random.randint(size), (order * 2 - 1) % 4)
             return apply_logical_vertical(temp_qubit_matrix, np.random.randint(size), (order * 2 + 1) % 4)
         else:
@@ -121,21 +121,35 @@ def apply_stabilizer(qubit_matrix, row=int, col=int, operator=int):
     # gives the resulting qubit error matrix from applying (row, col, operator) stabilizer
     # doesn't update input qubit_matrix
     size = qubit_matrix.shape[1]
-    if operator == 1:
+    if operator == 1: # 33.8% av tiden vs 54.8% av tiden jämfört med gamla, 62% av tiden med nya metoden
+        '''
         qubit_matrix_layers = np.array([1, 1, 0, 0])
         rows = np.array([row, row, row, (row - 1) % size])
         cols = np.array([col, (col - 1) % size, col, col])
+        '''
+        # undviker att assigna massa saker och sparar på så sätt tid.
+        result_qubit_matrix = np.copy(qubit_matrix)
+        result_qubit_matrix[1, row, col] =              rule_table[1][qubit_matrix[1, row, col]]
+        result_qubit_matrix[1, row, (col - 1) % size] = rule_table[1][qubit_matrix[1, row, (col - 1) % size]]
+        result_qubit_matrix[0, row, col] =              rule_table[1][qubit_matrix[0, row, col]]
+        result_qubit_matrix[0, (row - 1) % size, col] = rule_table[1][qubit_matrix[0, (row - 1) % size, col]]
 
-    elif operator == 3:
-        qubit_matrix_layers = np.array([1, 0, 0, 1])
+    elif operator == 3: 
+        '''qubit_matrix_layers = np.array([1, 0, 0, 1])
         rows = np.array([row, row, row, (row + 1) % size])
         cols = np.array([col, col, (col + 1) % size, col])
 
-    old_operators = qubit_matrix[qubit_matrix_layers, rows, cols]
-    new_operators = rule_table[operator][old_operators]
+        old_operators = qubit_matrix[qubit_matrix_layers, rows, cols]
+        new_operators = rule_table[operator][old_operators]
 
-    result_qubit_matrix = np.copy(qubit_matrix)
-    result_qubit_matrix[qubit_matrix_layers, rows, cols] = new_operators
+        result_qubit_matrix = np.copy(qubit_matrix)
+        result_qubit_matrix[qubit_matrix_layers, rows, cols] = new_operators'''
+        # undviker att assigna massa saker och sparar på så sätt tid.
+        result_qubit_matrix = np.copy(qubit_matrix)
+        result_qubit_matrix[1, row, col] =              rule_table[3][qubit_matrix[1, row, col]]
+        result_qubit_matrix[0, row, col] =              rule_table[3][qubit_matrix[0, row, col]]
+        result_qubit_matrix[0, row, (col + 1) % size] = rule_table[3][qubit_matrix[0, row, (col + 1) % size]]
+        result_qubit_matrix[1, (row - 1) % size, col] = rule_table[3][qubit_matrix[1, (row - 1) % size, col]]
     return result_qubit_matrix
 
 
