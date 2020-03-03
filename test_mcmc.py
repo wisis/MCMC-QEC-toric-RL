@@ -4,6 +4,20 @@ import numpy as np
 import copy
 import pandas as pd
 
+def main2():
+    size = 5
+    init_toric = Toric_code(size)
+
+    init_toric.generate_random_error(0.10)
+    #init_toric.qubit_matrix = apply_stabilizers_uniform(init_toric.qubit_matrix)
+    init_toric.syndrom('next_state')
+
+    print(init_toric.qubit_matrix)
+
+    # plot initial error configuration
+    init_toric.plot_toric_code(init_toric.next_state, 'Chain_init')
+
+    parallel_tempering(init_toric, 15, p=0.10, steps=10000, iters=10, conv_criteria='distr_based')
 
 def main():
     size = 5
@@ -113,7 +127,7 @@ def main():
         steps = input('How many steps? Ans: ')
         iters = input('How many iterations for each step? Ans: ')
 
-
+'''
 def saveData(init_qubit_matrix, distr, params):
     # Sparar data från XXX antal mcmc körningar (typ 10000 steps/till konvergens med 10 iters)
     # En entry här motsvarar en träningsentry och innehåller därför följande:
@@ -143,7 +157,7 @@ def saveData(init_qubit_matrix, distr, params):
         print(loaded_qubit_matrix)
         print(loaded_distr)
         print(loaded_params)
-   
+   '''
 
 if __name__ == '__main__':
-    main()
+    main2()

@@ -20,6 +20,7 @@ class Chain:
         self.p = p
         self.p_logical = 0
         self.flag = 0
+        # lägg till nonzeros
 
     def update_chain(self):
         if rand.random() < self.p_logical:
@@ -41,6 +42,123 @@ class Chain:
         self.toric.syndrom('next_state')
         self.toric.plot_toric_code(self.toric.next_state, name)
 
+#@profile
+def parallel_tempering(init_toric, Nc=None, p=0.1, SEQ=2, TOPS=10, eps=0.1, steps=1000, iters=10, conv_criteria='error_based'):
+    size = init_toric.system_size
+    Nc = Nc or size
+
+    # create the diffrent chains in an array
+    # number of chains in ladder, must be odd
+    try:
+        Nc % 2 == 0
+    except:
+        print('Number of chains was not odd.')
+    ladder = []  # ladder to store all chains
+    p_end = 0.75  # p at top chain as per high-threshold paper
+    tops0 = 0
+    convergence_reached = 0
+    nbr_errors_bottom_chain = []
+    eq = []
+    eq_count = np.zeros(16)
+    eq_class_distr = []
+
+
+    # test random error initialisation
+    init_toric.generate_random_error(p)
+    init_toric.qubit_matrix = apply_stabilizers_uniform(init_toric.qubit_matrix)
+
+    # plot initial error configuration
+    init_toric.plot_toric_code(init_toric.next_state, 'Chain_init')
+
+    # add and copy state for all chains in ladder
+    for i in range(Nc):
+        p_i = p + ((p_end - p) / (Nc - 1)) * i
+        ladder.append(Chain(size, p_i))
+        ladder[i].toric = copy.deepcopy(init_toric)  # give all the same initial state
+    ladder[Nc - 1].p_logical = 0.5  # set probability of application of logical operator in top chain
+
+    bottom_equivalence_classes = np.zeros(steps, dtype=int)
+
+    for j in range(steps):
+        # run mcmc for each chain [steps] times
+        for i in range(Nc):
+            for _ in range(iters):
+                ladder[i].update_chain()
+        # now attempt flips from the top down
+        for i in reversed(range(Nc - 1)):
+            if i == (Nc - 2):
+                ladder[i + 1].flag = 1
+            if ladder[0].flag == 1:
+                tops0 += 1
+                ladder[0].flag = 0
+            r_flip(ladder[i], ladder[i + 1])
+
+        if conv_criteria == 'error_based':
+            nbr_errors_bottom_chain.append(np.count_nonzero(ladder[0].toric.qubit_matrix))
+            if tops0 >= TOPS:
+                convergence_reached = conv_crit_error_based(ladder[0], nbr_errors_bottom_chain, eq_class_distr, tops0, TOPS, SEQ, eps)
+        if conv_criteria == 'distr_based':
+            if tops0 >= TOPS:
+                convergence_reached = conv_crit_distr_based(ladder[0], eq, eq_count)
+        ##if conv_criteria == '3':
+         #   convergence_reached = conv1(9jdifdf)
+
+        if convergence_reached:  # converged, append eq:s to list
+            eq_class_distr.append(define_equivalence_class(ladder[0].toric.qubit_matrix))
+            #print('jippppieeee')
+
+        bottom_equivalence_classes[j] = define_equivalence_class(ladder[0].toric.qubit_matrix)
+
+    # plot all chains
+    for i in range(Nc):
+        ladder[i].plot('Chain_' + str(i))
+
+    # count number of occurrences of each equivalence class
+    # equivalence_class_count[i] is the number of occurences of equivalence class number 'i'
+    # if
+    equivalence_class_count = np.bincount(bottom_equivalence_classes, minlength=15)
+    test = np.bincount(eq_class_distr, minlength=15)
+    print(test)
+    print('Equivalence classes: \n', np.arange(16))
+    print('Count:\n', equivalence_class_count)
+
+
+def conv_crit_error_based(bottom_chain, nbr_errors_bottom_chain, eq_class_distr, tops0, TOPS, SEQ, eps):#  Konvergenskriterium 1 i papper
+    second_quarter = nbr_errors_bottom_chain[(len(nbr_errors_bottom_chain) // 4): (len(nbr_errors_bottom_chain) // 4) * 2]
+    fourth_quarter = nbr_errors_bottom_chain[(len(nbr_errors_bottom_chain) // 4) * 3: (len(nbr_errors_bottom_chain) // 4) * 4]
+    Average_second_quarter = sum(second_quarter) / (len(second_quarter))
+    Average_fourth_quarter = sum(fourth_quarter) / (len(fourth_quarter))
+    error = abs(Average_second_quarter - Average_fourth_quarter)
+    if error > eps:
+        tops0 = TOPS
+    return tops0 == TOPS + SEQ  # true if converged
+
+def conv_crit_distr_based(bottom_chain, eq, eq_count, norm_tol=2):
+    eq_last = define_equivalence_class(bottom_chain.toric.qubit_matrix)
+    eq = eq + [eq_last]
+    eq_count[eq_last] += 1
+    #bsump = np.sum(eq_count)
+    Q2_count = np.zeros(16)
+    Q4_count = np.zeros(16)
+
+    l = len(eq)
+
+    for i in range(l):
+        if i >= l // 4 and i <= l // 2:
+            Q2_count[eq[i]] = Q2_count[eq[i]] + 1
+        if i >= (l * 3) // 4 and i < l:
+            Q4_count[eq[i]] = Q4_count[eq[i]] + 1
+    
+    #for i in range(16):
+        #print("ClassQ2: " + str(i))
+    # print(Q2_count[i]/(np.sum(Q2_count)))
+    #for i in range(16):
+        #print("ClassQ4: " + str(i))
+        #print(Q4_count[i]/(np.sum(Q4_count)))
+
+    #print("Norm: " + str(np.linalg.norm(Q4_count - Q2_count)) )
+
+    return (np.linalg.norm(Q4_count-Q2_count)) < norm_tol
 
 def r_flip(chain_lo, chain_hi):
     p_lo = chain_lo.p
