@@ -1,7 +1,11 @@
 from src.toric_model import Toric_code
 from src.mcmc import *
+from test_par import *
 import numpy as np
 import copy
+import time
+import multiprocessing as mp
+
 
 def main():
     size = 5
@@ -16,7 +20,7 @@ def main():
         toric_init.step(action)
     '''
     # create the diffrent chains in an array
-    N = 15  # number of chains in ladder
+    N = 9  # number of chains in ladder
     ladder = []  # ladder to store all chains
     p_start = 0.1  # what should this really be???
     p_end = 0.75  # p at top chain as per high-threshold paper
@@ -26,7 +30,7 @@ def main():
     toric_init.qubit_matrix = apply_stabilizers_uniform(toric_init.qubit_matrix)
 
     # plot initial error configuration
-    toric_init.plot_toric_code(toric_init.next_state, 'Chain_init')
+    #toric_init.plot_toric_code(toric_init.next_state, 'Chain_init')
 
     # add and copy state for all chains in ladder
     for i in range(N):
@@ -35,6 +39,7 @@ def main():
         ladder[i].toric = copy.deepcopy(toric_init)  # give all the same initial state
     ladder[N - 1].p_logical = 0.5  # set top chain as the only one where logicals happen
 
+    pool = mp.Pool(mp.cpu_count())
     steps = input('How many steps? Ans: ')
     iters = input('How many iterations for each step? Ans: ')
     while not (steps == 'n' or iters == 'n'):
@@ -45,14 +50,19 @@ def main():
             print('Input data bad, using default of 1 for both.')
             steps = 1
             iters = 1
+        start_time = time.time()
 
+        '''
         error_samples = np.zeros(steps, dtype=int)
 
         for j in range(steps):
             # run mcmc for each chain [steps] times
+            
             for i in range(N):
                 for _ in range(iters):
                     ladder[i].update_chain()
+            
+
             # now attempt flips from the top down
             for i in reversed(range(N - 1)):
                 r_flip(ladder[i], ladder[i + 1])
@@ -63,17 +73,22 @@ def main():
         # plot all chains
         for i in range(N):
             ladder[i].plot('Chain_' + str(i))
+        '''
+        error_samples = parallel_tempering(ladder, steps, iters, pool)
 
         # count number of occurrences of each equivalence class
         # equivalence_class_count[i] is the number of occurences of equivalence class number 'i'
         # if
         equivalence_class_count = np.bincount(error_samples, minlength=15)
 
-        print('Equivalence classes: \n', np.arange(16))
-        print('Count: \n', equivalence_class_count)
+        end_time = time.time()
 
         steps = input('How many steps? Ans: ')
         iters = input('How many iterations for each step? Ans: ')
+    pool.close()
+    print('Time: ', end_time - start_time)
+    print('Equivalence classes: \n', np.arange(16))
+    print('Count: \n', equivalence_class_count)
 
 
 if __name__ == "__main__":
