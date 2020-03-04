@@ -264,7 +264,6 @@ class RL():
 
         return reward
 
-
     def select_action(self, number_of_actions=int, epsilon=float, grid_shift=int):
         # set network in evluation mode 
         self.policy_net.eval()
