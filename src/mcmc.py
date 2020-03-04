@@ -58,7 +58,6 @@ def parallel_tempering(init_toric, Nc=None, p=0.1, SEQ=2, TOPS=10, eps=0.1, step
     tops0 = 0
     convergence_reached = 0
     nbr_errors_bottom_chain = []
-    eq = []
     eq_count = np.zeros(16)
     eq_class_distr = []
 
@@ -94,7 +93,7 @@ def parallel_tempering(init_toric, Nc=None, p=0.1, SEQ=2, TOPS=10, eps=0.1, step
                 convergence_reached = conv_crit_error_based(ladder[0], nbr_errors_bottom_chain, eq_class_distr, tops0, TOPS, SEQ, eps)
         if conv_criteria == 'distr_based':
             if tops0 >= TOPS:
-                convergence_reached = conv_crit_distr_based(ladder[0], eq, eq_count)
+                convergence_reached = conv_crit_distr_based(ladder[0], eq_class_distr, eq_count)
         ##if conv_criteria == '3':
          #   convergence_reached = conv1(9jdifdf)
 
@@ -111,11 +110,12 @@ def parallel_tempering(init_toric, Nc=None, p=0.1, SEQ=2, TOPS=10, eps=0.1, step
     # count number of occurrences of each equivalence class
     # equivalence_class_count[i] is the number of occurences of equivalence class number 'i'
     # if
-    equivalence_class_count = np.bincount(bottom_equivalence_classes, minlength=15)
-    test = np.bincount(eq_class_distr, minlength=15)
-    print(test)
+    eq_class_count_BC = np.bincount(bottom_equivalence_classes, minlength=16)
+    eq_class_count_AC = np.bincount(eq_class_distr, minlength=16)
+    print(eq_class_count_AC)
     print('Equivalence classes: \n', np.arange(16))
-    print('Count:\n', equivalence_class_count)
+    print('Count:\n', eq_class_count_BC)
+    return [eq_class_count_BC,eq_class_count_AC,ladder[0]]
 
 
 def conv_crit_error_based(bottom_chain, nbr_errors_bottom_chain, eq_class_distr, tops0, TOPS, SEQ, eps):#  Konvergenskriterium 1 i papper
@@ -128,7 +128,7 @@ def conv_crit_error_based(bottom_chain, nbr_errors_bottom_chain, eq_class_distr,
         tops0 = TOPS
     return tops0 == TOPS + SEQ  # true if converged
 
-def conv_crit_distr_based(bottom_chain, eq, eq_count, norm_tol=2):
+def conv_crit_distr_based(bottom_chain, eq, eq_count, norm_tol=2.5):
     eq_last = define_equivalence_class(bottom_chain.toric.qubit_matrix)
     eq = eq + [eq_last]
     eq_count[eq_last] += 1
