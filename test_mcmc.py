@@ -17,7 +17,7 @@ def main2():
     # plot initial error configuration
     init_toric.plot_toric_code(init_toric.next_state, 'Chain_init')
 
-    parallel_tempering(init_toric, 15, p=0.10, steps=10000, iters=10, conv_criteria='distr_based')
+    parallel_tempering(init_toric, 15, p=0.10, steps=10000, iters=10, conv_criteria='majority_based')
 
 def main():
     size = 5
