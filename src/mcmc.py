@@ -83,13 +83,12 @@ def parallel_tempering(init_toric, Nc=None, p=0.1, SEQ=2, TOPS=10, eps=0.1, step
             for _ in range(iters):
                 ladder[i].update_chain()
         # now attempt flips from the top down
+        ladder[-1].flag = 1
         for i in reversed(range(Nc - 1)):
-            if i == (Nc - 2):
-                ladder[i + 1].flag = 1
-            if ladder[0].flag == 1:
-                tops0 += 1
-                ladder[0].flag = 0
             r_flip(ladder[i], ladder[i + 1])
+        if ladder[0].flag == 1:
+            tops0 += 1
+            ladder[0].flag = 0
 
         if conv_criteria == 'error_based':
             nbr_errors_bottom_chain.append(np.count_nonzero(ladder[0].toric.qubit_matrix))
