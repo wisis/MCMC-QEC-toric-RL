@@ -256,10 +256,10 @@ class RL():
         
         terminal = np.all(self.toric.next_state==0)
         if terminal == True:
-            reward = reward(self.toric,correction_chain,self.p_error) #rewrad is the share of coorection_chains equivlaence class
-            correction_chain=Chain(self.toric.system_size,self.p_error) #reset chain
+            reward = reward(self.toric,self.correction_chain,self.p_error) #rewrad is the share of coorection_chains equivlaence class
+            self.correction_chain=Chain(self.toric.system_size,self.p_error) #reset chain
         else:
-            correction_chain.toric.step(a_last) #adds the action to the correction chain since it doesnt resolve the syndrom
+            self.correction_chain.toric.step(a_last) #adds the action to the correction chain since it doesnt resolve the syndrom
             reward = 0                          #we only give reward at the end
 
         return reward
