@@ -1,8 +1,9 @@
 import numpy as np
 import random as rand
 import copy
-from numba import jit, prange
+import collections 
 
+from numba import jit, prange
 from .toric_model import Toric_code
 from .util import Action
 
@@ -93,14 +94,17 @@ def parallel_tempering(init_toric, Nc=None, p=0.1, SEQ=2, TOPS=10, eps=0.1, step
                 convergence_reached = conv_crit_error_based(ladder[0], nbr_errors_bottom_chain, eq_class_distr, tops0, TOPS, SEQ, eps)
         if conv_criteria == 'distr_based':
             if tops0 >= TOPS:
-                convergence_reached = conv_crit_distr_based(ladder[0], eq_class_distr, eq_count)
-        ##if conv_criteria == '3':
-         #   convergence_reached = conv1(9jdifdf)
+                convergence_reached = conv_crit_distr_based(ladder[0], eq, eq_count)
+        if conv_criteria == 'majority_based':
+         	if tops0 >= 1:
+         		convergence_reached, majority_class = conv_crit_majority_based(ladder[0], eq, tops0, TOPS, SEQ)
+        if convergence_reached and conv_criteria != 'majority_based':  # converged, append eq:s to list
 
-        if convergence_reached:  # converged, append eq:s to list
             eq_class_distr.append(define_equivalence_class(ladder[0].toric.qubit_matrix))
-            #print('jippppieeee')
-
+        elif convergence_reached and conv_criteria == 'majority_based': 
+        	print("Majority class: ", majority_class)
+        	break
+        
         bottom_equivalence_classes[j] = define_equivalence_class(ladder[0].toric.qubit_matrix)
 
     # plot all chains
@@ -154,6 +158,28 @@ def conv_crit_distr_based(bottom_chain, eq, eq_count, norm_tol=2.5):
     #print("Norm: " + str(np.linalg.norm(Q4_count - Q2_count)) )
 
     return (np.linalg.norm(Q4_count-Q2_count)) < norm_tol
+
+def conv_crit_majority_based(bottom_chain, eq, tops0, TOPS, SEQ):
+	count_last_quarter = None
+	eq.append(define_equivalence_class(bottom_chain.toric.qubit_matrix))
+	length = len(eq)
+	if tops0 >= TOPS:
+		count_second_half = collections.Counter(eq[length//2:])
+		count_second_half = sorted(eq[length//2:], key=lambda x: -count_second_half[x])[0]
+		count_last_quarter = collections.Counter(eq[(length-length//4):])
+		count_last_quarter = sorted(eq[(length-length//4):], key=lambda x: -count_last_quarter[x])[0]
+		if count_second_half-count_last_quarter == 0:
+			return tops0 >= SEQ+TOPS, count_last_quarter
+		else: 
+			tops0 = TOPS	
+			return False, count_last_quarter
+	return False, count_last_quarter
+
+
+
+
+
+
 
 def r_flip(chain_lo, chain_hi):
     p_lo = chain_lo.p
