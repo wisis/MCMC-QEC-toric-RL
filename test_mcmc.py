@@ -4,27 +4,55 @@ import numpy as np
 import copy
 import pandas as pd
 import time
+import random 
 
 def main2():
-    size = 5
-    init_toric = Toric_code(size)
-    Nc = size 
-    p_error = 0.17
+	size = 5
+	init_toric = Toric_code(size)
+	Nc = 5
+	p_error = 0.17
 
-    init_toric.generate_random_error(p_error)
-    #init_toric.qubit_matrix = apply_stabilizers_uniform(init_toric.qubit_matrix)
-    init_toric.syndrom('next_state')
+	init_toric.generate_random_error(p_error)
+	#init_toric.qubit_matrix = apply_stabilizers_uniform(init_toric.qubit_matrix)
+	init_toric.syndrom('next_state')
 
-
-    # plot initial error configuration
-    init_toric.plot_toric_code(init_toric.next_state, 'Chain_init')
-    t1 = time.time()
-
-    [distr, eq_class_count_BC,eq_class_count_AC,chain0] = parallel_tempering(init_toric, Nc, p=p_error, steps=1000000, iters=10, conv_criteria='majority_based')
-    print("Majority based: ", distr)
-    [distr, eq_class_count_BC,eq_class_count_AC,chain0] = parallel_tempering(init_toric, Nc, p=p_error, steps=1000000, iters=10, conv_criteria='error_based')
-    print("Error based: ", distr)
-    print("runtime parallel tempering: ", time.time()-t1)
+	
+	
+	#generate a bunch of random numbers:
+	rand_list = []
+	#t1 = time.time()
+	#for _ in range(100000000):
+	#	rand_list.append(random.random())
+	
+	
+	
+	#print("generated random numbers: ", time.time()-t1)	
+	
+	# plot initial error configuration
+	init_toric.plot_toric_code(init_toric.next_state, 'Chain_init')
+	t1 = time.time()
+	iter = 4
+	counts1 = 0
+	counts2 = 0
+	for i in range(iter):
+		init_toric.generate_random_error(p_error)
+		eq_class = define_equivalence_class(init_toric.qubit_matrix)
+		[distr, eq_class_count_BC,eq_class_count_AC,chain0] = parallel_tempering(init_toric, Nc=size, p=p_error, SEQ=2, TOPS=10, steps=100000, iters=10, conv_criteria='majority_based')
+		eq_class_guessed1 = np.argmax(distr)
+		print("done Majority based ", i)
+		#print("Majority based: ", distr)
+		#print("runtime majority based: ", time.time()-t1)
+		#[distr, eq_class_count_BC,eq_class_count_AC,chain0] = parallel_tempering(init_toric,  Nc=size, p=p_error, SEQ=2, TOPS=10, eps = 0.2, steps=1000000, iters=10, conv_criteria='error_based')
+		#eq_class_guessed2 = np.argmax(distr)
+		if eq_class_guessed1 - eq_class == 0: counts1+=1
+		#print("Error based: ", distr)
+		#print("runtime error based: ", time.time()-t1)
+		#if eq_class_guessed2 - eq_class == 0: counts2+=1
+		init_toric = Toric_code(size)
+		#print("done Error based ", i)
+	print("success rate Majority based: ", counts1/iter)
+	print("time per run: ", (time.time()-t1)/iter)
+	#print("success rate Error based: ", counts2/iter)
 """
 def main():
     size = 5
