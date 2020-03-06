@@ -20,11 +20,15 @@ from .Replay_memory import Replay_memory_uniform, Replay_memory_prioritized
 from NN import NN_11, NN_17
 from ResNet import ResNet18, ResNet34, ResNet50, ResNet101, ResNet152
 from .util import incremental_mean, convert_from_np_to_tensor, Transition
+from mcmc import Chain
+from reward import reward
 
 
 class RL():
     def __init__(self, Network, Network_name, system_size=int, p_error=0.1, replay_memory_capacity=int, learning_rate=0.00025,
                 discount_factor=0.95, number_of_actions=3, max_nbr_actions_per_episode=50, device='cpu', replay_memory='uniform'):
+        self.correction_chain=Chain(self.toric.system_size,self.p_error)    # Correction chain added for implementing get_reward2(self)
+        self.a_last=Action(position = np.array([0, 0, 0]), action = 0)      # variable added for remembering latest action taken, also for implementing get_reward2(self)
         # device
         self.device = device
         # Toric code
@@ -211,6 +215,7 @@ class RL():
                 action = self.select_action(number_of_actions=self.number_of_actions,
                                             epsilon=epsilon, 
                                             grid_shift=self.grid_shift)
+                a_last=action                            
                 self.toric.step(action)
                 reward = self.get_reward()
                 # generate memory entry
@@ -247,6 +252,17 @@ class RL():
 
         return reward
 
+    def get_reward2(self):
+        
+        terminal = np.all(self.toric.next_state==0)
+        if terminal == True:
+            reward = reward(self.toric,self.correction_chain,self.p_error) #rewrad is the share of coorection_chains equivlaence class
+            self.correction_chain=Chain(self.toric.system_size,self.p_error) #reset chain
+        else:
+            self.correction_chain.toric.step(a_last) #adds the action to the correction chain since it doesnt resolve the syndrom
+            reward = 0                          #we only give reward at the end
+
+        return reward
 
     def select_action(self, number_of_actions=int, epsilon=float, grid_shift=int):
         # set network in evluation mode 

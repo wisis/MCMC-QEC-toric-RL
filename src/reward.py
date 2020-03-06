@@ -14,10 +14,10 @@ def reward(toric:Toric_code, suggested_corr_chain:Chain,p_rate):
     SEQ=2
     TOPS=10
     eps=0.1
-    steps=10000
+    steps=100000
     iters=10
     conv_criteria='distr_based' # 'error_based' #### 'distr_based'
-    weight=1
+    weight=100                    # weight to tune the reward, weight=1--> reward \in[0,1]
 
   
     terminal = np.all((toric.current_state-suggested_corr_chain.toric.current_state)==0)

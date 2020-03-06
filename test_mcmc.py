@@ -3,22 +3,29 @@ from src.mcmc import *
 import numpy as np
 import copy
 import pandas as pd
+import time
 
 def main2():
     size = 5
     init_toric = Toric_code(size)
+    Nc = size 
+    p_error = 0.17
 
-    init_toric.generate_random_error(0.10)
+    init_toric.generate_random_error(p_error)
     #init_toric.qubit_matrix = apply_stabilizers_uniform(init_toric.qubit_matrix)
     init_toric.syndrom('next_state')
 
-    print(init_toric.qubit_matrix)
 
     # plot initial error configuration
     init_toric.plot_toric_code(init_toric.next_state, 'Chain_init')
+    t1 = time.time()
 
-    parallel_tempering(init_toric, 15, p=0.10, steps=10000, iters=10, conv_criteria='majority_based')
-
+    [distr, eq_class_count_BC,eq_class_count_AC,chain0] = parallel_tempering(init_toric, Nc, p=p_error, steps=1000000, iters=10, conv_criteria='majority_based')
+    print("Majority based: ", distr)
+    [distr, eq_class_count_BC,eq_class_count_AC,chain0] = parallel_tempering(init_toric, Nc, p=p_error, steps=1000000, iters=10, conv_criteria='error_based')
+    print("Error based: ", distr)
+    print("runtime parallel tempering: ", time.time()-t1)
+"""
 def main():
     size = 5
     toric_init = Toric_code(size)
@@ -158,6 +165,6 @@ def saveData(init_qubit_matrix, distr, params):
         print(loaded_distr)
         print(loaded_params)
    '''
-
+"""
 if __name__ == '__main__':
     main2()
