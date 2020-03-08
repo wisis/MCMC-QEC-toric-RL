@@ -4,74 +4,31 @@ import numpy as np
 import copy
 import pandas as pd
 import time
-import random 
 
 def main2():
-	size = 5
-	init_toric = Toric_code(size)
-	Nc = size
-	p_error = 0.17
-	algorithm = 'distr_based'
+    size = 5
+    init_toric = Toric_code(size)
+    Nc = size 
+    p_error = 0.17
 
-	init_toric.generate_random_error(p_error)
-	#init_toric.qubit_matrix = apply_stabilizers_uniform(init_toric.qubit_matrix)
-	init_toric.syndrom('next_state')
+    init_toric.generate_random_error(p_error)
+    #init_toric.qubit_matrix = apply_stabilizers_uniform(init_toric.qubit_matrix)
+    init_toric.syndrom('next_state')
 
-	
-	
-	#generate a bunch of random numbers:
-	rand_list = []
-	#t1 = time.time()
-	#for _ in range(100000000):
-	#	rand_list.append(random.random())
-	
-	
-	
-	#print("generated random numbers: ", time.time()-t1)	
-	
-	# plot initial error configuration
-	init_toric.plot_toric_code(init_toric.next_state, 'Chain_init')
-	t1 = time.time()
-	iter = 10
-	counts0 = 0
-	counts1 = 0
-	counts2 = 0
-	for i in range(iter):
-		
-		init_toric.generate_random_error(p_error)
-		toric_copy = copy.deepcopy(init_toric)
-		apply_random_logical(toric_copy.qubit_matrix)
-		
-		eq_class1 = define_equivalence_class(init_toric.qubit_matrix)
-		eq_class2 = define_equivalence_class(toric_copy.qubit_matrix)
-		
-		[distr, _,_,_,majority_class] = parallel_tempering(init_toric, Nc=size, p=p_error, SEQ=2, TOPS=10, steps=100000, iters=10, conv_criteria=algorithm)
-		eq_class_guessed1 = np.argmax(distr)#majority_class#np.argmax(distr)##np.argmax(distr)
-		if eq_class_guessed1 == eq_class1: counts1+=1
-		#print("dist1: ", distr)
-		[distr, _,_,_,majority_class] = parallel_tempering(toric_copy, Nc=size, p=p_error, SEQ=2, TOPS=10, steps=100000, iters=10, conv_criteria=algorithm)
-		eq_class_guessed2 = np.argmax(distr)#majority_class#majority_class#np.argmax(distr)
-		if eq_class_guessed2 == eq_class2: 
-			counts2+=1
-		#print("dist2: ", distr)
-		
-		if eq_class_guessed1 == eq_class_guessed2: 
-		    counts0+=1
-		    print("correspondence!")
-		init_toric = Toric_code(size)
-		#print(i)
-	
-	print(algorithm)
-	print("correspondence rate: ", counts0/iter)
-	print("success rate: ", (counts1)/iter)
-	print("time per run: ", (time.time()-t1)/(2*iter))
-	print("log(P): ", np.log(1-counts1/(iter)))
-	#print("success rate Error based: ", counts2/iter)
+
+    # plot initial error configuration
+    init_toric.plot_toric_code(init_toric.next_state, 'Chain_init')
+    t1 = time.time()
+
+    [distr, eq_class_count_BC,eq_class_count_AC,chain0] = parallel_tempering(init_toric, Nc, p=p_error, steps=1000000, iters=10, conv_criteria='majority_based')
+    print("Majority based: ", distr)
+    [distr, eq_class_count_BC,eq_class_count_AC,chain0] = parallel_tempering(init_toric, Nc, p=p_error, steps=1000000, iters=10, conv_criteria='error_based')
+    print("Error based: ", distr)
+    print("runtime parallel tempering: ", time.time()-t1)
 """
 def main():
     size = 5
     toric_init = Toric_code(size)
-
     '''
     # Initial error configuration
     init_errors = np.array([[1, 0, 1, 3], [1, 1, 0, 1], [1, 3, 3, 3], [1, 4, 1, 1], [1, 1, 1, 1]])
@@ -96,21 +53,17 @@ def main():
     convergence_reached = 0
     nbr_errors_bottom_chain = []
     ec_frequency = []
-
     # test random error initialisation
     toric_init.generate_random_error(p_start)
     toric_init.qubit_matrix = apply_stabilizers_uniform(toric_init.qubit_matrix)
-
     # plot initial error configuration
     toric_init.plot_toric_code(toric_init.next_state, 'Chain_init')
-
     # add and copy state for all chains in ladder
     for i in range(N):
         p_i = p_start + ((p_end - p_start) / (N - 1)) * i
         ladder.append(Chain(size, p_i))
         ladder[i].toric = copy.deepcopy(toric_init)  # give all the same initial state
     ladder[N - 1].p_logical = 0.5  # set top chain as the only one where logicals happen
-
     steps = input('How many steps? Ans: ')
     iters = input('How many iterations for each step? Ans: ')
     while not (steps == 'n' or iters == 'n'):
@@ -121,9 +74,7 @@ def main():
             print('Input data bad, using default of 1 for both.')
             steps = 1
             iters = 1
-
         bottom_equivalence_classes = np.zeros(steps, dtype=int)
-
         for j in range(steps):
             # run mcmc for each chain [steps] times
             for i in range(N):
@@ -137,7 +88,6 @@ def main():
                     tops0 += 1
                     ladder[0].flag = 0
                 r_flip(ladder[i], ladder[i + 1])
-
             #  Konvergenskriterium 1 i papper
             temp = np.count_nonzero(ladder[0].toric.qubit_matrix)
             nbr_errors_bottom_chain.append(temp)  # vill man räkna y som två fel?
@@ -156,26 +106,19 @@ def main():
                         print('Convergence achieved.')
                     convergence_reached = 1
             # record current equivalence class in bottom layer
-
             bottom_equivalence_classes[j] = define_equivalence_class(ladder[0].toric.qubit_matrix)
-
         # plot all chains
         for i in range(N):
             ladder[i].plot('Chain_' + str(i))
-
         # count number of occurrences of each equivalence class
         # equivalence_class_count[i] is the number of occurences of equivalence class number 'i'
         # if
         equivalence_class_count = np.bincount(bottom_equivalence_classes, minlength=15)
-
         print('Equivalence classes: \n', np.arange(16))
         print('Count:\n', equivalence_class_count)
-
         saveData(toric_init.qubit_matrix, equivalence_class_count, 'hej')
-
         steps = input('How many steps? Ans: ')
         iters = input('How many iterations for each step? Ans: ')
-
 '''
 def saveData(init_qubit_matrix, distr, params):
     # Sparar data från XXX antal mcmc körningar (typ 10000 steps/till konvergens med 10 iters)
@@ -185,15 +128,12 @@ def saveData(init_qubit_matrix, distr, params):
     #  * Fördelning över ekvivalensklasser, typ 16array med fördelningssiffror, behövs som input till reward() för att
     #           se om vår lösningskedja tillhör rätt ekvivalensklass
     #  * Använda parametrar för generering av datapunkt
-
     #df = pd.DataFrame({ 'qubit_matrix': init_qubit_matrix,
     ##                    'distr': distr,
      #                   'params': params})
    file_path=os.path.join(os.getcwd(),
                        "data",
                        'df.csv'))
-
-
     df = pd.read_pickle(file_path)
     df = df.append(pd.DataFrame([[init_qubit_matrix, distr, params]]))
     df.to_pickle(file_path) #  går att använda json https://stackoverflow.com/questions/48428100/save-pandas-dataframe-with-numpy-arrays-column
