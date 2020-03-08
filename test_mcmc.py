@@ -9,8 +9,9 @@ import random
 def main2():
 	size = 5
 	init_toric = Toric_code(size)
-	Nc = 5
+	Nc = size
 	p_error = 0.17
+	algorithm = 'distr_based'
 
 	init_toric.generate_random_error(p_error)
 	#init_toric.qubit_matrix = apply_stabilizers_uniform(init_toric.qubit_matrix)
@@ -31,27 +32,40 @@ def main2():
 	# plot initial error configuration
 	init_toric.plot_toric_code(init_toric.next_state, 'Chain_init')
 	t1 = time.time()
-	iter = 4
+	iter = 10
+	counts0 = 0
 	counts1 = 0
 	counts2 = 0
 	for i in range(iter):
+		
 		init_toric.generate_random_error(p_error)
-		eq_class = define_equivalence_class(init_toric.qubit_matrix)
-		[distr, eq_class_count_BC,eq_class_count_AC,chain0] = parallel_tempering(init_toric, Nc=size, p=p_error, SEQ=2, TOPS=10, steps=100000, iters=10, conv_criteria='majority_based')
-		eq_class_guessed1 = np.argmax(distr)
-		print("done Majority based ", i)
-		#print("Majority based: ", distr)
-		#print("runtime majority based: ", time.time()-t1)
-		#[distr, eq_class_count_BC,eq_class_count_AC,chain0] = parallel_tempering(init_toric,  Nc=size, p=p_error, SEQ=2, TOPS=10, eps = 0.2, steps=1000000, iters=10, conv_criteria='error_based')
-		#eq_class_guessed2 = np.argmax(distr)
-		if eq_class_guessed1 - eq_class == 0: counts1+=1
-		#print("Error based: ", distr)
-		#print("runtime error based: ", time.time()-t1)
-		#if eq_class_guessed2 - eq_class == 0: counts2+=1
+		toric_copy = copy.deepcopy(init_toric)
+		apply_random_logical(toric_copy.qubit_matrix)
+		
+		eq_class1 = define_equivalence_class(init_toric.qubit_matrix)
+		eq_class2 = define_equivalence_class(toric_copy.qubit_matrix)
+		
+		[distr, _,_,_,majority_class] = parallel_tempering(init_toric, Nc=size, p=p_error, SEQ=2, TOPS=10, steps=100000, iters=10, conv_criteria=algorithm)
+		eq_class_guessed1 = np.argmax(distr)#majority_class#np.argmax(distr)##np.argmax(distr)
+		if eq_class_guessed1 == eq_class1: counts1+=1
+		#print("dist1: ", distr)
+		[distr, _,_,_,majority_class] = parallel_tempering(toric_copy, Nc=size, p=p_error, SEQ=2, TOPS=10, steps=100000, iters=10, conv_criteria=algorithm)
+		eq_class_guessed2 = np.argmax(distr)#majority_class#majority_class#np.argmax(distr)
+		if eq_class_guessed2 == eq_class2: 
+			counts2+=1
+		#print("dist2: ", distr)
+		
+		if eq_class_guessed1 == eq_class_guessed2: 
+		    counts0+=1
+		    print("correspondence!")
 		init_toric = Toric_code(size)
-		#print("done Error based ", i)
-	print("success rate Majority based: ", counts1/iter)
-	print("time per run: ", (time.time()-t1)/iter)
+		#print(i)
+	
+	print(algorithm)
+	print("correspondence rate: ", counts0/iter)
+	print("success rate: ", (counts1)/iter)
+	print("time per run: ", (time.time()-t1)/(2*iter))
+	print("log(P): ", np.log(1-counts1/(iter)))
 	#print("success rate Error based: ", counts2/iter)
 """
 def main():
