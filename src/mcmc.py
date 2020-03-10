@@ -27,7 +27,6 @@ class Chain:
         if rand.random() < self.p_logical:
             new_matrix, qubit_errors_change = apply_random_logical(self.toric.qubit_matrix)
         else:
-            #new_matrix = apply_random_stabilizer(self.toric.qubit_matrix)
             new_matrix, qubit_errors_change = apply_random_stabilizer(self.toric.qubit_matrix)
 
         '''
