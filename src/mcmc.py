@@ -45,6 +45,7 @@ class Chain:
         self.toric.syndrom('next_state')
         self.toric.plot_toric_code(self.toric.next_state, name)
 
+
 #@profile
 def parallel_tempering(init_toric, Nc=None, p=0.1, SEQ=2, TOPS=10, eps=0.1, n_tol=2, steps=1000, iters=10, conv_criteria='error_based'):
     size = init_toric.system_size
@@ -129,7 +130,7 @@ def parallel_tempering(init_toric, Nc=None, p=0.1, SEQ=2, TOPS=10, eps=0.1, n_to
     #print('Equivalence classes: \n', np.arange(16))
     #print('Before Count:\n', eq_class_count_BC)
     #print("NORM: ", np.linalg.norm(eq_class_count_AC))
-    distr = np.divide(eq_class_count_AC, np.linalg.norm(eq_class_count_AC))
+    distr = np.divide(eq_class_count_AC, np.sum(eq_class_count_AC))
     return [distr, eq_class_count_BC,eq_class_count_AC,ladder[0]]
 
 
@@ -142,6 +143,7 @@ def conv_crit_error_based(bottom_chain, nbr_errors_bottom_chain, eq_class_distr,
     if error > eps:
         tops0 = TOPS
     return tops0 == TOPS + SEQ  # true if converged
+
 
 def conv_crit_distr_based(bottom_chain, eq, eq_count, norm_tol=2.5):
     eq_last = define_equivalence_class(bottom_chain.toric.qubit_matrix)
@@ -169,6 +171,7 @@ def conv_crit_distr_based(bottom_chain, eq, eq_count, norm_tol=2.5):
     #print("Norm: " + str(np.linalg.norm(Q4_count - Q2_count)) )
 
     return (np.linalg.norm(Q4_count-Q2_count)) < norm_tol
+
 
 def conv_crit_majority_based(bottom_chain, eq, tops0, TOPS, SEQ):
 	count_last_quarter = None
@@ -204,6 +207,7 @@ def r_flip(chain_lo, chain_hi):
         chain_hi.flag = tempflag
 
 
+@jit(nopython=True)
 def apply_random_logical(qubit_matrix):
     size = qubit_matrix.shape[1]
     operator = int(rand.random() * 3) + 1  # operator to use, 2 (Y) will make both X and Z on the same layer
@@ -229,6 +233,7 @@ def apply_random_logical(qubit_matrix):
             return apply_logical_vertical(qubit_matrix, np.random.randint(size), operator)
 
 
+@jit(nopython=True)
 def apply_logical_vertical(qubit_matrix, col=int, operator=int):  # col goes from 0 to size-1, operator is either 1 or 3, corresponding to x and z
     size = qubit_matrix.shape[1]
     if operator == 1:  # makes sure the logical operator is applied on the correct layer, so that no syndromes are generated
@@ -262,6 +267,7 @@ def apply_logical_vertical(qubit_matrix, col=int, operator=int):  # col goes fro
     return result_qubit_matrix, error_count
 
 
+@jit(nopython=True)
 def apply_logical_horizontal(qubit_matrix, row=int, operator=int):  # col goes from 0 to size-1, operator is either 1 or 3, corresponding to x and z
     size = qubit_matrix.shape[1]
     if operator == 1:
@@ -326,6 +332,7 @@ def apply_stabilizer(qubit_matrix, row=int, col=int, operator=int):
     return result_qubit_matrix, error_count
 
 
+@jit(nopython=True)
 def apply_random_stabilizer(qubit_matrix):
     # select random coordinates where to apply operator
     size = qubit_matrix.shape[1]
