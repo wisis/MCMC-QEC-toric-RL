@@ -350,7 +350,7 @@ def apply_stabilizers_uniform(qubit_matrix, p=0.5):
             op, row, col = it.multi_index
             if op == 0:
                 op = 3
-            result_qubit_matrix = apply_stabilizer(result_qubit_matrix, row, col, op)
+            result_qubit_matrix, _ = apply_stabilizer(result_qubit_matrix, row, col, op)
         it.iternext()
     return result_qubit_matrix
 
