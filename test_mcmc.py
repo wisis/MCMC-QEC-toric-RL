@@ -29,7 +29,6 @@ def main2():
 def main():
     size = 5
     toric_init = Toric_code(size)
-
     '''
     # Initial error configuration
     init_errors = np.array([[1, 0, 1, 3], [1, 1, 0, 1], [1, 3, 3, 3], [1, 4, 1, 1], [1, 1, 1, 1]])
@@ -54,21 +53,17 @@ def main():
     convergence_reached = 0
     nbr_errors_bottom_chain = []
     ec_frequency = []
-
     # test random error initialisation
     toric_init.generate_random_error(p_start)
     toric_init.qubit_matrix = apply_stabilizers_uniform(toric_init.qubit_matrix)
-
     # plot initial error configuration
     toric_init.plot_toric_code(toric_init.next_state, 'Chain_init')
-
     # add and copy state for all chains in ladder
     for i in range(N):
         p_i = p_start + ((p_end - p_start) / (N - 1)) * i
         ladder.append(Chain(size, p_i))
         ladder[i].toric = copy.deepcopy(toric_init)  # give all the same initial state
     ladder[N - 1].p_logical = 0.5  # set top chain as the only one where logicals happen
-
     steps = input('How many steps? Ans: ')
     iters = input('How many iterations for each step? Ans: ')
     while not (steps == 'n' or iters == 'n'):
@@ -79,9 +74,7 @@ def main():
             print('Input data bad, using default of 1 for both.')
             steps = 1
             iters = 1
-
         bottom_equivalence_classes = np.zeros(steps, dtype=int)
-
         for j in range(steps):
             # run mcmc for each chain [steps] times
             for i in range(N):
@@ -95,7 +88,6 @@ def main():
                     tops0 += 1
                     ladder[0].flag = 0
                 r_flip(ladder[i], ladder[i + 1])
-
             #  Konvergenskriterium 1 i papper
             temp = np.count_nonzero(ladder[0].toric.qubit_matrix)
             nbr_errors_bottom_chain.append(temp)  # vill man räkna y som två fel?
@@ -114,26 +106,19 @@ def main():
                         print('Convergence achieved.')
                     convergence_reached = 1
             # record current equivalence class in bottom layer
-
             bottom_equivalence_classes[j] = define_equivalence_class(ladder[0].toric.qubit_matrix)
-
         # plot all chains
         for i in range(N):
             ladder[i].plot('Chain_' + str(i))
-
         # count number of occurrences of each equivalence class
         # equivalence_class_count[i] is the number of occurences of equivalence class number 'i'
         # if
         equivalence_class_count = np.bincount(bottom_equivalence_classes, minlength=15)
-
         print('Equivalence classes: \n', np.arange(16))
         print('Count:\n', equivalence_class_count)
-
         saveData(toric_init.qubit_matrix, equivalence_class_count, 'hej')
-
         steps = input('How many steps? Ans: ')
         iters = input('How many iterations for each step? Ans: ')
-
 '''
 def saveData(init_qubit_matrix, distr, params):
     # Sparar data från XXX antal mcmc körningar (typ 10000 steps/till konvergens med 10 iters)
@@ -143,15 +128,12 @@ def saveData(init_qubit_matrix, distr, params):
     #  * Fördelning över ekvivalensklasser, typ 16array med fördelningssiffror, behövs som input till reward() för att
     #           se om vår lösningskedja tillhör rätt ekvivalensklass
     #  * Använda parametrar för generering av datapunkt
-
     #df = pd.DataFrame({ 'qubit_matrix': init_qubit_matrix,
     ##                    'distr': distr,
      #                   'params': params})
    file_path=os.path.join(os.getcwd(),
                        "data",
                        'df.csv'))
-
-
     df = pd.read_pickle(file_path)
     df = df.append(pd.DataFrame([[init_qubit_matrix, distr, params]]))
     df.to_pickle(file_path) #  går att använda json https://stackoverflow.com/questions/48428100/save-pandas-dataframe-with-numpy-arrays-column
