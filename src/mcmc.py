@@ -104,7 +104,7 @@ def parallel_tempering(init_toric, Nc=None, p=0.1, SEQ=2, TOPS=10, eps=0.1, n_to
          	if tops0 >= 1:
          		convergence_reached, majority_class = conv_crit_majority_based(ladder[0], eq, tops0, TOPS, SEQ) 
          		#returns the majority class that becomes obvious right when convergence is reached
-        if convergence_reached and conv_criteria != 'majority_based':  # converged, append eq:s to list
+        if convergence_reached and conv_criteria == 'distr_based':  # converged, append eq:s to list
             counter+=1
             eq_class_distr.append(define_equivalence_class(ladder[0].toric.qubit_matrix))
             if counter == nbr_steps_after_convergence: break 
@@ -114,6 +114,8 @@ def parallel_tempering(init_toric, Nc=None, p=0.1, SEQ=2, TOPS=10, eps=0.1, n_to
         	#print("Majority class: ", majority_class)
         	if counter == nbr_steps_after_convergence: 
         		break 
+        elif convergence_reached and conv_criteria == 'error_based': 
+            break
         
         bottom_equivalence_classes[j] = define_equivalence_class(ladder[0].toric.qubit_matrix)
 
@@ -142,6 +144,9 @@ def conv_crit_error_based(bottom_chain, nbr_errors_bottom_chain, eq_class_distr,
     error = abs(Average_second_quarter - Average_fourth_quarter)
     if error > eps:
         tops0 = TOPS
+        eq_class_distr=[]
+    else: 
+        eq_class_distr.append(define_equivalence_class(bottom_chain.toric.qubit_matrix))
     return tops0 == TOPS + SEQ  # true if converged
 
 
