@@ -21,7 +21,6 @@ class Chain:
         self.p = p
         self.p_logical = 0
         self.flag = 0
-        self.num_errors = 0
         # lägg till nonzeros
 
     def update_chain(self):
@@ -42,9 +41,9 @@ class Chain:
 
         # Avoid calculating r if possible. If self.p is 0.75 r = 1 and we accept all changes
         # If the new qubit matrix has fewer errors, r > 1 and we also accept all changes
-        if self.p >= 0.75 or qubit_errors_change < 0:
+        if self.p >= 0.75 or qubit_errors_change <= 0:
             self.toric.qubit_matrix = new_matrix
-            self.num_errors += qubit_errors_change
+            #self.num_errors += qubit_errors_change
             return
         
         r = ((self.p / 3.0) / (1.0 - self.p)) ** qubit_errors_change
@@ -53,19 +52,21 @@ class Chain:
 
         if rand.random() < r:
             self.toric.qubit_matrix = new_matrix
-            self.num_errors += qubit_errors_change
-
-    # Use for initialization
-    def calc_num_errors(self):
-        self.num_errors = np.count_nonzero(self.toric.qubit_matrix)
+            #self.num_errors += qubit_errors_change
 
     def plot(self, name):
         self.toric.syndrom('next_state')
         self.toric.plot_toric_code(self.toric.next_state, name)
 
+'''
+    # Use for initialization
+    def calc_num_errors(self):
+        self.num_errors = np.count_nonzero(self.toric.qubit_matrix)
+'''
+
 
 #@profile
-def parallel_tempering(init_toric, Nc=None, p=0.1, SEQ=2, TOPS=10, eps=0.1, steps=1000, iters=10, conv_criteria='error_based'):
+def parallel_tempering(init_toric, Nc=None, p=0.1, SEQ=2, TOPS=10, eps=0.1, n_tol=2, steps=1000, iters=10, conv_criteria='error_based'):
     size = init_toric.system_size
     Nc = Nc or size
 
@@ -112,12 +113,12 @@ def parallel_tempering(init_toric, Nc=None, p=0.1, SEQ=2, TOPS=10, eps=0.1, step
             ladder[0].flag = 0
 
         if conv_criteria == 'error_based':
-            nbr_errors_bottom_chain.append(ladder[0].num_errors)
+            nbr_errors_bottom_chain.append(np.count_nonzero(ladder[0].toric.qubit_matrix))
             if tops0 >= TOPS:
                 convergence_reached = conv_crit_error_based(ladder[0], nbr_errors_bottom_chain, eq_class_distr, tops0, TOPS, SEQ, eps)
         if conv_criteria == 'distr_based':
             if tops0 >= TOPS:
-                convergence_reached = conv_crit_distr_based(ladder[0], eq, eq_count)
+                convergence_reached = conv_crit_distr_based(ladder[0], eq, eq_count, n_tol)
         if conv_criteria == 'majority_based':
             if tops0 >= 1:
                 convergence_reached, majority_class = conv_crit_majority_based(ladder[0], eq, tops0, TOPS, SEQ) 
@@ -233,18 +234,18 @@ def apply_random_logical(qubit_matrix):
 
     if orientation == 0:  # Horizontal
         if operator == 2:
-            order = int(rand.random() * 2)  # make sure that we randomize which operator goes verically and horizontally
-            temp_qubit_matrix, temp_error_change = apply_logical_horizontal(qubit_matrix, int(rand.random() * size), (order * 2 - 1) % 4)
-            result_qubit_matrix, result_error_change = apply_logical_vertical(temp_qubit_matrix, int(rand.random() * size), (order * 2 + 1) % 4)
+            #order = int(rand.random() * 2)  # make sure that we randomize which operator goes verically and horizontally
+            temp_qubit_matrix, temp_error_change = apply_logical_horizontal(qubit_matrix, int(rand.random() * size), 1) #(order * 2 - 1) % 4)
+            result_qubit_matrix, result_error_change = apply_logical_horizontal(temp_qubit_matrix, int(rand.random() * size), 3) #(order * 2 + 1) % 4)
             result_error_change += temp_error_change
             return result_qubit_matrix, result_error_change
         else:
             return apply_logical_horizontal(qubit_matrix, int(rand.random() * size), operator)
     elif orientation == 1:  # Vertical
         if operator == 2:
-            order = int(rand.random() * 2)  # make sure that we randomize which operator goes verically and horizontally
-            temp_qubit_matrix, temp_error_change = apply_logical_vertical(qubit_matrix, int(rand.random() * size), (order * 2 - 1) % 4)
-            result_qubit_matrix, result_error_change = apply_logical_horizontal(temp_qubit_matrix, int(rand.random() * size), (order * 2 + 1) % 4)
+            #order = int(rand.random() * 2)  # make sure that we randomize which operator goes verically and horizontally
+            temp_qubit_matrix, temp_error_change = apply_logical_vertical(qubit_matrix, int(rand.random() * size), 1)#(order * 2 - 1) % 4)
+            result_qubit_matrix, result_error_change = apply_logical_horizontal(temp_qubit_matrix, int(rand.random() * size), 3)#(order * 2 + 1) % 4)
             result_error_change += temp_error_change
             return result_qubit_matrix, result_error_change
         else:
@@ -306,7 +307,8 @@ def apply_logical_horizontal(qubit_matrix, row=int, operator=int):  # col goes f
     result_qubit_matrix[qubit_matrix_layers, rows, cols] = new_operators
     '''
 
-    result_qubit_matrix = qubit_matrix
+    # Have to make copy, else original matrix is changed
+    result_qubit_matrix = np.copy(qubit_matrix)
     error_count = 0
 
     for col in range(size):
@@ -336,7 +338,8 @@ def apply_stabilizer(qubit_matrix, row=int, col=int, operator=int):
         rows = np.array([row, row, row, (row + 1) % size])
         cols = np.array([col, col, (col + 1) % size, col])
 
-    result_qubit_matrix = qubit_matrix
+    # Have to make copy, else original matrix is changed
+    result_qubit_matrix = np.copy(qubit_matrix)
     error_count = 0
 
     # place new qubit values in matrix
