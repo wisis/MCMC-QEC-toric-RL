@@ -40,11 +40,11 @@ def generate(file_path, max_capacity=10000, nbr_datapoints=10, df_name='df'):
     params = {  'size':5,
                 'p':0.10,
                 'Nc':11,
-                'steps':10000,
+                'steps':10000000,
                 'iters':10,
                 'conv_criteria':'distr_based',
-                'SEQ':10,
-                'TOPS':2,
+                'SEQ':2,
+                'TOPS':10,
                 'eps':0.1}
 
     size = 5
@@ -73,7 +73,7 @@ def generate(file_path, max_capacity=10000, nbr_datapoints=10, df_name='df'):
         init_toric.generate_random_error(params['p'])
 
         # generate data for DataFrame storage  OBS now using full bincount, change this
-        [_, df_eq_distr, _, _] = parallel_tempering(init_toric, size, p=0.10, steps=params['steps'], iters=10, conv_criteria='distr_based')
+        [df_eq_distr, _, _, _] = parallel_tempering(init_toric, 9, p=0.10, steps=params['steps'], iters=10, conv_criteria='distr_based')
         df_qubit = init_toric.qubit_matrix.reshape((-1))  # can also use flatten here?
         
         # create indices for generated data
@@ -82,8 +82,8 @@ def generate(file_path, max_capacity=10000, nbr_datapoints=10, df_name='df'):
         index_distr = pd.MultiIndex.from_product([[i], np.arange(16)+2, [0], [0]], names=names)
 
         # Add data to Dataframes
-        df_qubit = pd.DataFrame(df_qubit.astype(np.uint16), index=index_qubit, columns=['data'])
-        df_distr = pd.DataFrame(df_eq_distr.astype(np.uint16), index=index_distr, columns=['data']) # dtype for eq_distr? want uint16
+        df_qubit = pd.DataFrame(df_qubit.astype(np.uint8), index=index_qubit, columns=['data'])
+        df_distr = pd.DataFrame(df_eq_distr.astype(np.uint8), index=index_distr, columns=['data']) # dtype for eq_distr? want uint16
 
         # Add dataframes to list, we do not append to df here because of O(L) time complexity
         df_list.append(df_qubit)
@@ -101,7 +101,7 @@ def generate(file_path, max_capacity=10000, nbr_datapoints=10, df_name='df'):
 
 if __name__ == '__main__':
     file_path=os.path.join(os.getcwd(), "data", 'data.xz')
-    generate(file_path, 1000, 1)
+    generate(file_path, 1000, 30)
     #view_all_data(file_path)
     iterator = MCMCDataReader(file_path, 5)
     while iterator.has_next():

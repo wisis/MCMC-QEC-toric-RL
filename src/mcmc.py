@@ -98,16 +98,22 @@ def parallel_tempering(init_toric, Nc=None, p=0.1, SEQ=2, TOPS=10, eps=0.1, n_to
             if tops0 >= TOPS:
                 convergence_reached = conv_crit_error_based(ladder[0], nbr_errors_bottom_chain, eq_class_distr, tops0, TOPS, SEQ, eps)
         if conv_criteria == 'distr_based':
+            if tops0 >= 2:
+                eq.append(define_equivalence_class(ladder[0].toric.qubit_matrix))
             if tops0 >= TOPS:
-                convergence_reached = conv_crit_distr_based(ladder[0], eq, eq_count, n_tol)
+                eq_class_distr.append(define_equivalence_class(ladder[0].toric.qubit_matrix))
+                convergence_reached = conv_crit_distr_based(ladder[0], eq, eq_count)
         if conv_criteria == 'majority_based':
          	if tops0 >= 1:
          		convergence_reached, majority_class = conv_crit_majority_based(ladder[0], eq, tops0, TOPS, SEQ) 
          		#returns the majority class that becomes obvious right when convergence is reached
         if convergence_reached and conv_criteria == 'distr_based':  # converged, append eq:s to list
             counter+=1
-            eq_class_distr.append(define_equivalence_class(ladder[0].toric.qubit_matrix))
             if counter == nbr_steps_after_convergence: break 
+        elif convergence_reached and conv_criteria == 'error_based':
+            counter+=1
+            eq_class_distr.append(define_equivalence_class(ladder[0].toric.qubit_matrix))
+            if counter == nbr_steps_after_convergence: break
         elif convergence_reached and conv_criteria == 'majority_based': 
         	counter+=1
         	eq_class_distr.append(define_equivalence_class(ladder[0].toric.qubit_matrix))
@@ -132,7 +138,7 @@ def parallel_tempering(init_toric, Nc=None, p=0.1, SEQ=2, TOPS=10, eps=0.1, n_to
     #print('Equivalence classes: \n', np.arange(16))
     #print('Before Count:\n', eq_class_count_BC)
     #print("NORM: ", np.linalg.norm(eq_class_count_AC))
-    distr = np.divide(eq_class_count_AC, np.sum(eq_class_count_AC))
+    distr = (np.divide(eq_class_count_AC, np.sum(eq_class_count_AC)) * 200).astype(np.uint8)
     return [distr, eq_class_count_BC,eq_class_count_AC,ladder[0]]
 
 
@@ -149,8 +155,7 @@ def conv_crit_error_based(bottom_chain, nbr_errors_bottom_chain, eq_class_distr,
         eq_class_distr.append(define_equivalence_class(bottom_chain.toric.qubit_matrix))
     return tops0 == TOPS + SEQ  # true if converged
 
-
-def conv_crit_distr_based(bottom_chain, eq, eq_count, norm_tol=2.5):
+def conv_crit_distr_based(bottom_chain, eq, eq_count, norm_tol=0.05):
     eq_last = define_equivalence_class(bottom_chain.toric.qubit_matrix)
     eq = eq + [eq_last]
     eq_count[eq_last] += 1
@@ -174,8 +179,9 @@ def conv_crit_distr_based(bottom_chain, eq, eq_count, norm_tol=2.5):
         #print(Q4_count[i]/(np.sum(Q4_count)))
 
     #print("Norm: " + str(np.linalg.norm(Q4_count - Q2_count)) )
+    #print(np.linalg.norm(np.divide(Q4_count-Q2_count, l)))
 
-    return (np.linalg.norm(Q4_count-Q2_count)) < norm_tol
+    return (np.linalg.norm(np.divide(Q4_count-Q2_count, l))) < norm_tol
 
 
 def conv_crit_majority_based(bottom_chain, eq, tops0, TOPS, SEQ):
