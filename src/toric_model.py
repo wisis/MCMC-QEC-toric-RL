@@ -1,7 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
-#from random import uniform, randint
-import random 
+from random import uniform, randint
 from collections import namedtuple
 from .util import Action, Perspective
 
@@ -33,24 +32,7 @@ class Toric_code():
             self.qubit_matrix[i,:,:] = np.multiply(qubits, pauli_error)
         self.syndrom('state')
 
-                 
-     
-    def generate_biased_error(self, p_x, p_y, p_z):
-        for i in range(2):
-            for row in range(self.system_size):
-                for col in range(self.system_size):
-                    self.qubit_matrix[i,row,col] =  self.rule_table[self.biasedRandom(p_x, p_y, p_z)][self.qubit_matrix[i,row,col]]    
-        self.syndrom('state')
         
-    def biasedRandom(self,p_x, p_y, p_z):
-        x = random.random()
-        if x<= p_x: return 1
-        elif x<= p_x+p_y: return 2
-        elif x <= p_x+p_y+p_z: return 3
-        else: return 0
-    
-    
-       
     def generate_n_random_errors(self, n):
         errors = np.random.randint(3, size = n) + 1
         qubit_matrix_error = np.zeros(2*self.system_size**2)
@@ -134,7 +116,7 @@ class Toric_code():
 
     def eval_ground_state(self):    # True: trivial loop
                                     # False: non trivial loop
-           # can only distinguish non trivial and trivial loop. Categorization what kind of non trivial loop does not work 
+	       # can only distinguish non trivial and trivial loop. Categorization what kind of non trivial loop does not work 
             # function works only for odd grid dimensions! 3x3, 5x5, 7x7        
         def split_qubit_matrix_in_x_and_z():
         # loops vertex space qubit matrix 0

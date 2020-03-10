@@ -40,7 +40,7 @@ def generate(file_path, max_capacity=10000, nbr_datapoints=10, df_name='df'):
     params = {  'size':5,
                 'p':0.10,
                 'Nc':11,
-                'steps':20000,
+                'steps':10000,
                 'iters':10,
                 'conv_criteria':'distr_based',
                 'SEQ':10,
@@ -101,7 +101,7 @@ def generate(file_path, max_capacity=10000, nbr_datapoints=10, df_name='df'):
 
 if __name__ == '__main__':
     file_path=os.path.join(os.getcwd(), "data", 'data.xz')
-    generate(file_path, 10, 10)
+    generate(file_path, 1000, 1)
     #view_all_data(file_path)
     iterator = MCMCDataReader(file_path, 5)
     while iterator.has_next():

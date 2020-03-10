@@ -10,11 +10,7 @@ def main2():
     init_toric = Toric_code(size)
     Nc = size 
     p_error = 0.17
-    init_toric.generate_biased_error(0.1/3, 0.2/3, 0.1/3)
-    init_toric.syndrom('next_state')
-    init_toric.plot_toric_code(init_toric.next_state, 'Chain_init')
 
-"""
     init_toric.generate_random_error(p_error)
     #init_toric.qubit_matrix = apply_stabilizers_uniform(init_toric.qubit_matrix)
     init_toric.syndrom('next_state')
@@ -24,16 +20,11 @@ def main2():
     init_toric.plot_toric_code(init_toric.next_state, 'Chain_init')
     t1 = time.time()
 
-    #[distr, eq_class_count_BC,eq_class_count_AC,chain0] = parallel_tempering(init_toric, Nc, p=p_error, steps=1000000, iters=10, conv_criteria='majority_based')
-
-    [distr, eq_class_count_BC,eq_class_count_AC,chain0] = parallel_tempering(init_toric, Nc, p=p_error, steps=1000000, iters=10, conv_criteria='distr_based')
-
+    [distr, eq_class_count_BC,eq_class_count_AC,chain0] = parallel_tempering(init_toric, Nc, p=p_error, steps=1000000, iters=10, conv_criteria='majority_based')
+    print("Majority based: ", distr)
+    [distr, eq_class_count_BC,eq_class_count_AC,chain0] = parallel_tempering(init_toric, Nc, p=p_error, steps=1000000, iters=10, conv_criteria='error_based')
+    print("Error based: ", distr)
     print("runtime parallel tempering: ", time.time()-t1)
-    
-    init_toric
-    
-"""    
-
 """
 def main():
     size = 5

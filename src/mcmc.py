@@ -22,9 +22,6 @@ class Chain:
         self.p_logical = 0
         self.flag = 0
         self.num_errors = 0
-        p_x = p[0]
-        p_y = p[1]
-        p_z = p[2]
         # lägg till nonzeros
 
     def update_chain(self):
@@ -85,7 +82,7 @@ def parallel_tempering(init_toric, Nc=None, p=0.1, SEQ=2, TOPS=10, eps=0.1, step
     eq_class_distr = []
     eq = []
     counter = 0
-    nbr_steps_after_convergence = 10000
+    nbr_steps_after_convergence = 100
 
     # plot initial error configuration
     init_toric.plot_toric_code(init_toric.next_state, 'Chain_init')
@@ -164,7 +161,7 @@ def conv_crit_error_based(bottom_chain, nbr_errors_bottom_chain, eq_class_distr,
     return tops0 == TOPS + SEQ  # true if converged
 
 
-def conv_crit_distr_based(bottom_chain, eq, eq_count, norm_tol=0.5):
+def conv_crit_distr_based(bottom_chain, eq, eq_count, norm_tol=2.5):
     eq_last = define_equivalence_class(bottom_chain.toric.qubit_matrix)
     eq = eq + [eq_last]
     eq_count[eq_last] += 1
