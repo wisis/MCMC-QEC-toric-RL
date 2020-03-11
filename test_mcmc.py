@@ -26,6 +26,39 @@ def main2():
     print("Error based: ", distr)
     print("runtime parallel tempering: ", time.time()-t1)
 
+def convergence_tester():
+    size = 5
+    init_toric = Toric_code(size)
+    Nc = 9
+    p_error = 0.17
+    success = 0
+    correspondence = 0
+    
+    for i in range(1000):
+          init_toric.generate_random_error(p_error)
+          toric_copy = copy.deepcopy(init_toric)
+          apply_random_logical(toric_copy.qubit_matrix)
+          class_before = define_equivalence_class(init_toric.qubit_matrix)
+          [distr1, eq_class_count_BC,eq_class_count_AC,chain0] = parallel_tempering(init_toric, 9, p=p_error, steps=1000000, iters=10, conv_criteria='error_based')
+          [distr2, eq_class_count_BC,eq_class_count_AC,chain0] = parallel_tempering(init_toric, 9, p=p_error, steps=1000000, iters=10, conv_criteria='error_based')
+          class_after = np.argmax(distr1)
+          copy_class_after = np.argmax(distr2)
+          if class_after == class_before:
+              success+=1
+          if copy_class_after == class_after:
+              correspondence+=1
+          
+          if i >= 1:
+              print('#' + str(i) +" current success rate: ", success/(i+1))
+              print('#' + str(i) + " current correspondence: ", correspondence/(i+1))
+          
+          
+
+
+
+
+
+
 def main3():
     size = 5
     init_toric = Toric_code(size)
@@ -61,7 +94,7 @@ def main3():
         print("error #" + str(i) + ': ', distr)
         #print("error runtime: ", time.time()-t4)
     print("runtime: ", time.time()-t1)
-    
+          
 """
 def main():
     size = 5
@@ -186,4 +219,4 @@ def saveData(init_qubit_matrix, distr, params):
    '''
 """
 if __name__ == '__main__':
-    main3()
+    convergence_tester()
