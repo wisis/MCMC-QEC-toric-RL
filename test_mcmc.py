@@ -29,10 +29,10 @@ def main2():
 def main3():
     size = 5
     init_toric = Toric_code(size)
-    Nc = 9
+    Nc = 15
     p_error = 0.17
 
-    init_toric.generate_n_random_errors(8)
+    init_toric.generate_random_error(p_error)
     #init_toric.qubit_matrix = apply_stabilizers_uniform(init_toric.qubit_matrix)
     init_toric.syndrom('next_state')
 
@@ -41,8 +41,10 @@ def main3():
     init_toric.plot_toric_code(init_toric.next_state, 'Chain_init')
     t1 = time.time()
 
+    startingqubit = init_toric.qubit_matrix
+
     for i in range(10):
-        init_toric.qubit_matrix, _ = apply_random_logical(init_toric.qubit_matrix)
+        init_toric.qubit_matrix, _ = apply_random_logical(startingqubit)
 
         #t2 = time.time()
         #[distr, eq_class_count_BC,eq_class_count_AC,chain0] = parallel_tempering(init_toric, 9, p=p_error, steps=1000000, iters=10, TOPS=10, SEQ=2, conv_criteria='majority_based')
@@ -57,7 +59,7 @@ def main3():
         t4 = time.time()
         [distr, eq_class_count_BC,eq_class_count_AC,chain0] = parallel_tempering(init_toric, 9, p=p_error, steps=1000000, iters=10, conv_criteria='error_based')
         print("error #" + str(i) + ': ', distr)
-        print("error runtime: ", time.time()-t4)
+        #print("error runtime: ", time.time()-t4)
     print("runtime: ", time.time()-t1)
     
 """
