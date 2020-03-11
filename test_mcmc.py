@@ -40,7 +40,7 @@ def convergence_tester():
           apply_random_logical(toric_copy.qubit_matrix)
           class_before = define_equivalence_class(init_toric.qubit_matrix)
           [distr1, eq_class_count_BC,eq_class_count_AC,chain0] = parallel_tempering(init_toric, 9, p=p_error, steps=1000000, iters=10, conv_criteria='error_based')
-          [distr2, eq_class_count_BC,eq_class_count_AC,chain0] = parallel_tempering(init_toric, 9, p=p_error, steps=1000000, iters=10, conv_criteria='error_based')
+          [distr2, eq_class_count_BC,eq_class_count_AC,chain0] = parallel_tempering(toric_copy, 9, p=p_error, steps=1000000, iters=10, conv_criteria='error_based')
           class_after = np.argmax(distr1)
           copy_class_after = np.argmax(distr2)
           if class_after == class_before:

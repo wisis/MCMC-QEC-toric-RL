@@ -9,7 +9,7 @@ from .util import Action
 from .mcmc import *
 from .reward import *
 
-
+'''
 def test_tolerence_all_seeds(eps_interval=[0,0.1],norm_tol=[0.09,0.2],convergence_criteria='distr_based'):
     y1=[]
     y2=[]
@@ -23,9 +23,35 @@ def test_tolerence_all_seeds(eps_interval=[0,0.1],norm_tol=[0.09,0.2],convergenc
     plt.plot(x, y1, label = "line 1")
     plt.plot(x, y2, label = "line 2")
     plt.show()
-            
+'''
+'''            
+def sucess_and_correspondence_tester(seed_number,iterations=1000):
     
+    init_toric =seed(seed_number)
+    size = init_toric.system_size
+    Nc = 9
+    p_error = 0.17
+    success = 0
+    correspondence = 0
     
+    for i in range(iterations):
+          
+          toric_copy = copy.deepcopy(init_toric)
+          apply_random_logical(toric_copy.qubit_matrix)
+          class_before = define_equivalence_class(init_toric.qubit_matrix)
+          [distr1, eq_class_count_BC,eq_class_count_AC,chain0] = parallel_tempering(init_toric, 9, p=p_error, steps=1000000, iters=10, conv_criteria='error_based')
+          [distr2, eq_class_count_BC,eq_class_count_AC,chain0] = parallel_tempering(toric_copy, 9, p=p_error, steps=1000000, iters=10, conv_criteria='error_based')
+          class_after = np.argmax(distr1)
+          copy_class_after = np.argmax(distr2)
+          if class_after == class_before:
+              success+=1
+          if copy_class_after == class_after:
+              correspondence+=1
+          
+          if i >= 1:
+              print('#' + str(i) +" current success rate: ", success/(i+1))
+              print('#' + str(i) + " current correspondence: ", correspondence/(i+1))   
+  '''  
 def test_distribution_convergence(convergence_criteria='distr_based',eps=0.1,n_tol=2):
     torr=seed(1)
     print('Equivalence class of seed(1): ' + str(define_equivalence_class(torr.qubit_matrix)))
