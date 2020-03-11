@@ -10,7 +10,7 @@ from .mcmc import *
 from .reward import *
 
 
-def test_tolerence_all_seeds(eps_interval=[0,0.1],norm_tol=[0.1,2.0],convergence_criteria='distr_based'):
+def test_tolerence_all_seeds(eps_interval=[0,0.1],norm_tol=[0.09,0.2],convergence_criteria='distr_based'):
     y1=[]
     y2=[]
     x=[]
