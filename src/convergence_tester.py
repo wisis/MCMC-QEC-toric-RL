@@ -37,12 +37,17 @@ def test_distribution_convergence(convergence_criteria='distr_based',eps=0.1,n_t
     x = [ 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16] 
     for i in range(16):
         height = array_of_distributions[i]
-        tick_label = ['1', '2', '3', '4', '5','6','7','8','9','10','11','12','13','14','15','16'] 
+        height=np.divide(height,np.sum(height))
+        tick_label = ['1', '2', '3', '4', '5','6','7','8','9','10','11','12','13','14','15','16']
+        plt.subplot(4,4,i+1) 
         plt.bar(x, height, tick_label = tick_label, width = 0.8, color = ['red', 'green'])
+        axes = plt.gca()
+        axes.set_ylim([0,1])
         plt.xlabel('Equivalence classes') 
         plt.ylabel('y - axis') 
-        plt.title('Ditribution of different classes') 
-        plt.show() 
+        plt.title('') 
+        
+    plt.show() 
     return array_of_distributions
     
 def time_all_seeds(convergence_criteria='distr_based',eps=0.1,n_tol=0.5):
@@ -122,7 +127,7 @@ def seed(number):
     elif n==8:
         [toric.qubit_matrix,_]=apply_logical_vertical(toric.qubit_matrix,1,1)
         [toric.qubit_matrix,_]=apply_logical_horizontal(toric.qubit_matrix,1,1)
-         return toric
+        return toric
     elif n==9:
         [toric.qubit_matrix,_]=apply_logical_vertical(toric.qubit_matrix,1,3)
         [toric.qubit_matrix,_]=apply_logical_horizontal(toric.qubit_matrix,1,3)
@@ -134,7 +139,7 @@ def seed(number):
     elif n==11:
         [toric.qubit_matrix,_]=apply_logical_vertical(toric.qubit_matrix,1,3)
         [toric.qubit_matrix,_]=apply_logical_horizontal(toric.qubit_matrix,1,1)
-         return toric
+        return toric
     elif n==12:
         [toric.qubit_matrix,_]=apply_logical_vertical(toric.qubit_matrix,1,1)
         [toric.qubit_matrix,_]=apply_logical_vertical(toric.qubit_matrix,1,3)
@@ -144,17 +149,17 @@ def seed(number):
         [toric.qubit_matrix,_]=apply_logical_vertical(toric.qubit_matrix,1,1)
         [toric.qubit_matrix,_]=apply_logical_vertical(toric.qubit_matrix,1,3)
         [toric.qubit_matrix,_]=apply_logical_horizontal(toric.qubit_matrix,1,3)
-         return toric
+        return toric
     elif n==14:
         [toric.qubit_matrix,_]=apply_logical_vertical(toric.qubit_matrix,1,1)
         [toric.qubit_matrix,_]=apply_logical_horizontal(toric.qubit_matrix,1,3)
         [toric.qubit_matrix,_]=apply_logical_horizontal(toric.qubit_matrix,1,1)
-         return toric
+        return toric
     elif n==15:
         [toric.qubit_matrix,_]=apply_logical_vertical(toric.qubit_matrix,1,3)
         [toric.qubit_matrix,_]=apply_logical_horizontal(toric.qubit_matrix,1,3)
         [toric.qubit_matrix,_]=apply_logical_horizontal(toric.qubit_matrix,1,1)
-         return toric
+        return toric
     elif n==16:
         [toric.qubit_matrix,_]=apply_logical_vertical(toric.qubit_matrix,1,1)
         [toric.qubit_matrix,_]=apply_logical_vertical(toric.qubit_matrix,1,3)
