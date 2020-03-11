@@ -95,133 +95,71 @@ def in_seed(seed_number):
 def seed(number):
     toric=in_seed(1)
     n=number
-    if n<1 or n>21:
+    if n<1 or n>16:
         print('You tried to get a non-valid seed')
     elif n==1:
         return toric
     elif n==2:
         [toric.qubit_matrix,_]=apply_logical_horizontal(toric.qubit_matrix,1,1)
-        action = Action(position = np.array([0, 0, 0]), action = 1)
-        toric.step(action)
-        action = Action(position = np.array([0, 0, 0]), action = 1)
-        toric.step(action)
         return toric
     elif n==3:
         [toric.qubit_matrix,_]=apply_logical_horizontal(toric.qubit_matrix,1,3)
-        action = Action(position = np.array([0, 0, 0]), action = 1)
-        toric.step(action)
-        action = Action(position = np.array([0, 0, 0]), action = 1)
-        toric.step(action)
         return toric
-    
     elif n==4:
         [toric.qubit_matrix,_]=apply_logical_vertical(toric.qubit_matrix,1,1)
-        action = Action(position = np.array([0, 0, 0]), action = 1)
-        toric.step(action)
-        action = Action(position = np.array([0, 0, 0]), action = 1)
-        toric.step(action)
         return toric
     elif n==5:
         [toric.qubit_matrix,_]=apply_logical_vertical(toric.qubit_matrix,1,3)
-        action = Action(position = np.array([0, 0, 0]), action = 1)
-        toric.step(action)
-        action = Action(position = np.array([0, 0, 0]), action = 1)
-        toric.step(action)
         return toric
     elif n==6:
         [toric.qubit_matrix,_]=apply_logical_horizontal(toric.qubit_matrix,1,1)
         [toric.qubit_matrix,_]=apply_logical_horizontal(toric.qubit_matrix,1,3)
-        action = Action(position = np.array([0, 0, 0]), action = 1)
-        toric.step(action)
-        action = Action(position = np.array([0, 0, 0]), action = 1)
-        toric.step(action)
         return toric
     elif n==7:
         [toric.qubit_matrix,_]=apply_logical_vertical(toric.qubit_matrix,1,1)
         [toric.qubit_matrix,_]=apply_logical_vertical(toric.qubit_matrix,1,3)
-        action = Action(position = np.array([0, 0, 0]), action = 1)
-        toric.step(action)
-        action = Action(position = np.array([0, 0, 0]), action = 1)
-        toric.step(action)
         return toric
     elif n==8:
         [toric.qubit_matrix,_]=apply_logical_vertical(toric.qubit_matrix,1,1)
         [toric.qubit_matrix,_]=apply_logical_horizontal(toric.qubit_matrix,1,1)
-        action = Action(position = np.array([0, 0, 0]), action = 1)
-        toric.step(action)
-        action = Action(position = np.array([0, 0, 0]), action = 1)
-        toric.step(action)
-        return toric
-    
+         return toric
     elif n==9:
         [toric.qubit_matrix,_]=apply_logical_vertical(toric.qubit_matrix,1,3)
         [toric.qubit_matrix,_]=apply_logical_horizontal(toric.qubit_matrix,1,3)
-        action = Action(position = np.array([0, 0, 0]), action = 1)
-        toric.step(action)
-        action = Action(position = np.array([0, 0, 0]), action = 1)
-        toric.step(action)
         return toric
     elif n==10:
         [toric.qubit_matrix,_]=apply_logical_vertical(toric.qubit_matrix,1,1)
         [toric.qubit_matrix,_]=apply_logical_horizontal(toric.qubit_matrix,1,3)
-        action = Action(position = np.array([0, 0, 0]), action = 1)
-        toric.step(action)
-        action = Action(position = np.array([0, 0, 0]), action = 1)
-        toric.step(action)
         return toric
     elif n==11:
         [toric.qubit_matrix,_]=apply_logical_vertical(toric.qubit_matrix,1,3)
         [toric.qubit_matrix,_]=apply_logical_horizontal(toric.qubit_matrix,1,1)
-        action = Action(position = np.array([0, 0, 0]), action = 1)
-        toric.step(action)
-        action = Action(position = np.array([0, 0, 0]), action = 1)
-        toric.step(action)
-        return toric
+         return toric
     elif n==12:
         [toric.qubit_matrix,_]=apply_logical_vertical(toric.qubit_matrix,1,1)
         [toric.qubit_matrix,_]=apply_logical_vertical(toric.qubit_matrix,1,3)
         [toric.qubit_matrix,_]=apply_logical_horizontal(toric.qubit_matrix,1,1)
-        action = Action(position = np.array([0, 0, 0]), action = 1)
-        toric.step(action)
-        action = Action(position = np.array([0, 0, 0]), action = 1)
-        toric.step(action)
         return toric
     elif n==13:
         [toric.qubit_matrix,_]=apply_logical_vertical(toric.qubit_matrix,1,1)
         [toric.qubit_matrix,_]=apply_logical_vertical(toric.qubit_matrix,1,3)
         [toric.qubit_matrix,_]=apply_logical_horizontal(toric.qubit_matrix,1,3)
-        action = Action(position = np.array([0, 0, 0]), action = 1)
-        toric.step(action)
-        action = Action(position = np.array([0, 0, 0]), action = 1)
-        toric.step(action)
-        return toric
+         return toric
     elif n==14:
         [toric.qubit_matrix,_]=apply_logical_vertical(toric.qubit_matrix,1,1)
         [toric.qubit_matrix,_]=apply_logical_horizontal(toric.qubit_matrix,1,3)
         [toric.qubit_matrix,_]=apply_logical_horizontal(toric.qubit_matrix,1,1)
-        action = Action(position = np.array([0, 0, 0]), action = 1)
-        toric.step(action)
-        action = Action(position = np.array([0, 0, 0]), action = 1)
-        toric.step(action)
-        return toric
+         return toric
     elif n==15:
         [toric.qubit_matrix,_]=apply_logical_vertical(toric.qubit_matrix,1,3)
         [toric.qubit_matrix,_]=apply_logical_horizontal(toric.qubit_matrix,1,3)
         [toric.qubit_matrix,_]=apply_logical_horizontal(toric.qubit_matrix,1,1)
-        action = Action(position = np.array([0, 0, 0]), action = 1)
-        toric.step(action)
-        action = Action(position = np.array([0, 0, 0]), action = 1)
-        toric.step(action)
-        return toric
+         return toric
     elif n==16:
         [toric.qubit_matrix,_]=apply_logical_vertical(toric.qubit_matrix,1,1)
         [toric.qubit_matrix,_]=apply_logical_vertical(toric.qubit_matrix,1,3)
         [toric.qubit_matrix,_]=apply_logical_horizontal(toric.qubit_matrix,1,3)
         [toric.qubit_matrix,_]=apply_logical_horizontal(toric.qubit_matrix,1,1)
-        action = Action(position = np.array([0, 0, 0]), action = 1)
-        toric.step(action)
-        action = Action(position = np.array([0, 0, 0]), action = 1)
-        toric.step(action)
         return toric
     
     
