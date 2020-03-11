@@ -159,6 +159,7 @@ def conv_crit_error_based(bottom_chain, nbr_errors_bottom_chain, eq_class_distr,
     #    eq_class_distr.append(define_equivalence_class(bottom_chain.toric.qubit_matrix))
     return error > eps, tops0 >= TOPS + SEQ  # true if converged
 
+
 def conv_crit_distr_based(bottom_chain, eq, eq_count, norm_tol=0.05):
     eq_last = define_equivalence_class(bottom_chain.toric.qubit_matrix)
     eq = eq + [eq_last]
@@ -189,20 +190,20 @@ def conv_crit_distr_based(bottom_chain, eq, eq_count, norm_tol=0.05):
 
 
 def conv_crit_majority_based(bottom_chain, eq, tops0, TOPS, SEQ):
-	count_last_quarter = None
-	eq.append(define_equivalence_class(bottom_chain.toric.qubit_matrix))
-	length = len(eq)
-	if tops0 >= TOPS:
-		count_second_half = collections.Counter(eq[length//2:])
-		count_second_half = sorted(eq[length//2:], key=lambda x: -count_second_half[x])[0]
-		count_last_quarter = collections.Counter(eq[(length-length//4):])
-		count_last_quarter = sorted(eq[(length-length//4):], key=lambda x: -count_last_quarter[x])[0]
-		if count_second_half-count_last_quarter == 0:
-			return tops0 >= SEQ+TOPS, count_last_quarter
-		else: 
-			tops0 = TOPS	
-			return False, count_last_quarter
-	return False, count_last_quarter
+    count_last_quarter = None
+    eq.append(define_equivalence_class(bottom_chain.toric.qubit_matrix))
+    length = len(eq)
+    if tops0 >= TOPS:
+        count_second_half = collections.Counter(eq[length//2:])
+        count_second_half = sorted(eq[length//2:], key=lambda x: -count_second_half[x])[0]
+        count_last_quarter = collections.Counter(eq[(length-length//4):])
+        count_last_quarter = sorted(eq[(length-length//4):], key=lambda x: -count_last_quarter[x])[0]
+        if count_second_half-count_last_quarter == 0:
+            return tops0 >= SEQ+TOPS, count_last_quarter
+        else:
+            tops0 = TOPS
+            return False, count_last_quarter
+    return False, count_last_quarter
 
 
 def r_flip(chain_lo, chain_hi):
@@ -225,27 +226,28 @@ def r_flip(chain_lo, chain_hi):
 @jit(nopython=True)
 def apply_random_logical(qubit_matrix):
     size = qubit_matrix.shape[1]
-    operator = int(rand.random() * 3) + 1  # operator to use, 2 (Y) will make both X and Z on the same layer
-    orientation = int(rand.random() * 2)  # 0 - horizontal, 1 - vertical
 
-    if orientation == 0:  # Horizontal
-        if operator == 2:
-            #order = int(rand.random() * 2)  # make sure that we randomize which operator goes verically and horizontally
-            temp_qubit_matrix, temp_error_change = apply_logical_horizontal(qubit_matrix, int(rand.random() * size), 1) #(order * 2 - 1) % 4)
-            result_qubit_matrix, result_error_change = apply_logical_horizontal(temp_qubit_matrix, int(rand.random() * size), 3) #(order * 2 + 1) % 4)
-            result_error_change += temp_error_change
-            return result_qubit_matrix, result_error_change
+    # operator to use, 2 (Y) will make both X and Z on the same layer. 0 is identity
+    # one operator for each layer
+    operators = [int(rand.random()*4),int(rand.random()*4)]
+
+    # ok to not copy, since apply_logical doesnt change input
+    result_qubit_matrix = qubit_matrix
+    result_error_change = 0
+
+    for layer, op in enumerate(operators):
+        if op == 1 or op == 2:
+            X_pos = int(rand.random() * size)
         else:
-            return apply_logical_horizontal(qubit_matrix, np.random.randint(size), operator)
-    elif orientation == 1:  # Vertical
-        if operator == 2:
-            #order = int(rand.random() * 2)  # make sure that we randomize which operator goes verically and horizontally
-            temp_qubit_matrix, temp_error_change = apply_logical_vertical(qubit_matrix, int(rand.random() * size), 1)#(order * 2 - 1) % 4)
-            result_qubit_matrix, result_error_change = apply_logical_horizontal(temp_qubit_matrix, int(rand.random() * size), 3)#(order * 2 + 1) % 4)
-            result_error_change += temp_error_change
-            return result_qubit_matrix, result_error_change
+            X_pos = 0
+        if op == 3 or op == 2:
+            Z_pos = int(rand.random() * size)
         else:
-            return apply_logical_vertical(qubit_matrix, np.random.randint(size), operator)
+            Z_pos = 0
+        result_qubit_matrix, tmp_error_change = apply_logical(result_qubit_matrix, op, layer, X_pos, Z_pos)
+        result_error_change += tmp_error_change
+
+    return result_qubit_matrix, result_error_change
 
 
 @jit(nopython=True)
@@ -313,6 +315,53 @@ def apply_logical_horizontal(qubit_matrix, row=int, operator=int):  # col goes f
         elif new_qubit and not old_qubit:
             error_count += 1
 
+    return result_qubit_matrix, error_count
+
+
+@jit(nopython=True)
+def apply_logical(qubit_matrix, operator=int, layer=int, X_pos=0, Z_pos=0):
+    # Operator is zero means identity, no need to keep going
+    if operator == 0:
+        return qubit_matrix, 0
+
+    size = qubit_matrix.shape[1]
+
+    # Have to make copy, else original matrix is changed
+    result_qubit_matrix = np.copy(qubit_matrix)
+    error_count = 0
+
+    # layer 0 is qubits on vertical grid lines
+    # layer 1 is qubits on horizontal grid lines
+    # logical X works orthogonal to grid lines
+    # logical Z works parallel to grid lines
+
+    # Transpose copied matrix if layer is 1. Makes next step more straightforward
+    # Editing orient_result changes result_qubit matrix whether transposed or not
+    if layer == 0:
+        orient_result = result_qubit_matrix
+    elif layer == 1:
+        orient_result = result_qubit_matrix.transpose(0, 2, 1)
+
+    do_X = (operator == 1 or operator == 2)
+    do_Z = (operator == 3 or operator == 2)
+
+    # Helper function
+    def qubit_update(row, col, op):
+        old_qubit = orient_result[layer, row, col]
+        new_qubit = rule_table[op][old_qubit]
+        orient_result[layer, row, col] = new_qubit
+        if old_qubit and not new_qubit:
+            return -1
+        elif new_qubit and not old_qubit:
+            return 1
+        else:
+            return 0
+
+    for index in range(size):
+        if do_X:
+            error_count += qubit_update(X_pos, index, 1)
+        if do_Z:
+            error_count += qubit_update(index, Z_pos, 3)
     return result_qubit_matrix, error_count
 
 
