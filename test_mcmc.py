@@ -35,6 +35,7 @@ def convergence_tester():
     correspondence = 0
     
     for i in range(1000):
+          t1 = time.time()
           init_toric.generate_random_error(p_error)
           toric_copy = copy.deepcopy(init_toric)
           apply_random_logical(toric_copy.qubit_matrix)
@@ -50,7 +51,7 @@ def convergence_tester():
           
           if i >= 1:
               print('#' + str(i) +" current success rate: ", success/(i+1))
-              print('#' + str(i) + " current correspondence: ", correspondence/(i+1))
+              print('#' + str(i) + " current correspondence: ", correspondence/(i+1), " time: ", time.time()- t1)
           
           
 

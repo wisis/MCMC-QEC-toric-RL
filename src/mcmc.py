@@ -47,7 +47,7 @@ class Chain:
 
 
 #@profile
-def parallel_tempering(init_toric, Nc=None, p=0.1, SEQ=15, TOPS=10, eps=0.05, n_tol=2, steps=1000, iters=10, conv_criteria='error_based'):
+def parallel_tempering(init_toric, Nc=None, p=0.1, SEQ=10, TOPS=15, eps = 1000, n_tol=2, steps=1000, iters=10, conv_criteria='error_based'):
     size = init_toric.system_size
     Nc = Nc or size
 
@@ -66,7 +66,7 @@ def parallel_tempering(init_toric, Nc=None, p=0.1, SEQ=15, TOPS=10, eps=0.05, n_
     eq_class_distr = []
     eq = []
     counter = 0
-    nbr_steps_after_convergence = 100
+    nbr_steps_after_convergence = 40000
 
     # plot initial error configuration
     init_toric.plot_toric_code(init_toric.next_state, 'Chain_init')
@@ -116,8 +116,8 @@ def parallel_tempering(init_toric, Nc=None, p=0.1, SEQ=15, TOPS=10, eps=0.05, n_
             counter+=1
             if counter == nbr_steps_after_convergence: break 
         elif convergence_reached and conv_criteria == 'error_based':
-            #print(eq_class_distr)
-            break
+            counter+=1
+            if counter == nbr_steps_after_convergence: break 
         elif convergence_reached and conv_criteria == 'majority_based': 
         	counter+=1
         	eq_class_distr.append(define_equivalence_class(ladder[0].toric.qubit_matrix))
