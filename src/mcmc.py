@@ -66,7 +66,7 @@ def parallel_tempering(init_toric, Nc=None, p=0.1, SEQ=10, TOPS=15, eps = 1000, 
     eq_class_distr = []
     eq = []
     counter = 0
-    nbr_steps_after_convergence = 40000
+    nbr_steps_after_convergence = 30000
 
     # plot initial error configuration
     init_toric.plot_toric_code(init_toric.next_state, 'Chain_init')
