@@ -52,12 +52,13 @@ def sucess_and_correspondence_tester(seed_number,iterations=1000):
               print('#' + str(i) +" current success rate: ", success/(i+1))
               print('#' + str(i) + " current correspondence: ", correspondence/(i+1))   
   '''  
-def test_distribution_convergence(convergence_criteria='distr_based',eps=0.1,n_tol=2):
+def test_distribution_convergence(convergence_criteria='distr_based',eps=0.1,n_tol=0.05):
     torr=seed(1)
     print('Equivalence class of seed(1): ' + str(define_equivalence_class(torr.qubit_matrix)))
     array_of_distributions=[]
     for i in range(16):
         t = seed(i+1)
+        print(i)
         [_,_,temp,_] = parallel_tempering(t, 9, 0.1, 2, 10, eps,n_tol, 100000, 10, convergence_criteria)
         array_of_distributions += [temp]
     x = [ 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16] 
@@ -101,7 +102,7 @@ def time_all_seeds(convergence_criteria='distr_based',eps=0.1,n_tol=0.5):
 def in_seed(seed_number):
     toric=Toric_code(5)
     n=seed_number
-    if n<1 or n>1:
+    if n<1 or n>2:
         print('You tried to get a non-valid seed')
     elif n==1:
         action = Action(position = np.array([0, 2, 0]), action = 1) #([vertical=0,horisontal=1, y-position, x-position]), action = x=1,y=2,z=3,I=0)
@@ -123,8 +124,14 @@ def in_seed(seed_number):
         action = Action(position = np.array([0, 4, 1]), action = 2)
         toric.step(action)#9
         return toric
+    elif n==2: #Mats seed
+        action = Action(position = np.array([1, 2, 1]), action = 1) 
+        toric.step(action)#1
+        action = Action(position = np.array([1, 3, 1]), action = 1) 
+        toric.step(action)#2
+        return toric
 def seed(number):
-    toric=in_seed(1)
+    toric=in_seed(2)
     n=number
     if n<1 or n>16:
         print('You tried to get a non-valid seed')

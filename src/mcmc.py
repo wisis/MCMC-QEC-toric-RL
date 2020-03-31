@@ -47,7 +47,7 @@ class Chain:
 
 
 #@profile
-def parallel_tempering(init_toric, Nc=None, p=0.1, SEQ=10, TOPS=15, eps = 1000, n_tol=2, steps=1000, iters=10, conv_criteria='error_based'):
+def parallel_tempering(init_toric, Nc=None, p=0.1, SEQ=5, TOPS=10, eps = 1000, n_tol=2, steps=1000, iters=10, conv_criteria='error_based'):
     size = init_toric.system_size
     Nc = Nc or size
 
@@ -66,7 +66,7 @@ def parallel_tempering(init_toric, Nc=None, p=0.1, SEQ=10, TOPS=15, eps = 1000, 
     eq_class_distr = []
     eq = []
     counter = 0
-    nbr_steps_after_convergence = 30000
+    nbr_steps_after_convergence = 10000
 
     # plot initial error configuration
     init_toric.plot_toric_code(init_toric.next_state, 'Chain_init')
@@ -184,8 +184,9 @@ def conv_crit_distr_based(bottom_chain, eq, eq_count, norm_tol=0.05):
         #print(Q4_count[i]/(np.sum(Q4_count)))
 
     #print("Norm: " + str(np.linalg.norm(Q4_count - Q2_count)) )
-    #print(np.linalg.norm(np.divide(Q4_count-Q2_count, l)))
-
+    #print("Norm: "+ str(np.linalg.norm(np.divide(Q4_count-Q2_count, l))))
+    #print (norm_tol)
+    #print((np.linalg.norm(np.divide(Q4_count-Q2_count, l))) < norm_tol)
     return (np.linalg.norm(np.divide(Q4_count-Q2_count, l))) < norm_tol
 
 
