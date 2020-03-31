@@ -4,6 +4,7 @@ import numpy as np
 import copy
 import pandas as pd
 import time
+import matplotlib.pyplot as plt
 
 def main2():
     size = 5
@@ -52,23 +53,27 @@ def convergence_tester():
           if i >= 1:
               print('#' + str(i) +" current success rate: ", success/(i+1))
               print('#' + str(i) + " current correspondence: ", correspondence/(i+1), " time: ", time.time()- t1)
-          
-          
-
-
-
-
 
 
 def main3():
+    points = 1
     size = 5
     init_toric = Toric_code(size)
     Nc = 15
-    p_error = 0.17
+    p_error = [i*0.005 + 0.01 for i in range(points)]
 
-    init_toric.generate_random_error(p_error)
-    #init_toric.qubit_matrix = apply_stabilizers_uniform(init_toric.qubit_matrix)
+    # define error
+    action = Action(position = np.array([1, 2, 1]), action = 1) #([vertical=0,horisontal=1, y-position, x-position]), action = x=1,y=2,z=3,I=0)
+    init_toric.step(action)#1
+    action = Action(position = np.array([1, 3, 1]), action = 1)
+    init_toric.step(action)#2
+    action = Action(position = np.array([1, 1, 2]), action = 1)
+    init_toric.step(action)#2
+    #action = Action(position = np.array([0, 3, 2]), action = 1)
+    #init_toric.step(action)#2
+
     init_toric.syndrom('next_state')
+    
 
 
     # plot initial error configuration
@@ -77,23 +82,27 @@ def main3():
 
     startingqubit = init_toric.qubit_matrix
 
-    for i in range(10):
-        init_toric.qubit_matrix, _ = apply_random_logical(startingqubit)
+    data = []
 
-        #t2 = time.time()
-        #[distr, eq_class_count_BC,eq_class_count_AC,chain0] = parallel_tempering(init_toric, 9, p=p_error, steps=1000000, iters=10, TOPS=10, SEQ=2, conv_criteria='majority_based')
-        #print("major #" + str(i) + ': ', distr)
-        #print("majority runtime: ", time.time()-t2)
+    for i in range(points):
+        #init_toric.qubit_matrix, _ = apply_random_logical(startingqubit)
 
-        #t3 = time.time()
-        #[distr, eq_class_count_BC,eq_class_count_AC,chain0] = parallel_tempering(init_toric, 9, p=p_error, steps=1000000, iters=10, TOPS=10, SEQ=2, conv_criteria='distr_based')
-        #print("distr #" + str(i) + ': ', distr)
-        #print("distr runtime: ", time.time()-t3)
+        [distr, eq_class_count_BC,eq_class_count_AC,chain0] = parallel_tempering(init_toric, 9, p=p_error[i], steps=1000000, iters=10, conv_criteria='none')
+        #print("error #" + str(i) + ': ', eq_class_count_BC/np.sum(eq_class_count_BC))
+        distr_i = eq_class_count_BC/np.sum(eq_class_count_BC)
+        data.append(distr_i)
+        print(p_error[i], distr_i)
+    
+    data = np.asarray(data)
+    print(data[:,0])
+    for i in range(16):
+        plt.plot(p_error, data[:,i], label=('eq_class_' + str(i+1)))
+    plt.xlabel('Error rate, p')
+    plt.ylabel('Probability of equivalance class')
+    plt.legend(loc=1)
 
-        t4 = time.time()
-        [distr, eq_class_count_BC,eq_class_count_AC,chain0] = parallel_tempering(init_toric, 9, p=p_error, steps=1000000, iters=10, conv_criteria='error_based')
-        print("error #" + str(i) + ': ', distr)
-        #print("error runtime: ", time.time()-t4)
+    plt.show()
+        
     print("runtime: ", time.time()-t1)
           
 """
@@ -220,4 +229,5 @@ def saveData(init_qubit_matrix, distr, params):
    '''
 """
 if __name__ == '__main__':
-    convergence_tester()
+    #convergence_tester()
+    main3()
