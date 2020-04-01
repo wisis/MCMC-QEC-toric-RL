@@ -3,11 +3,19 @@ import random as rand
 import copy
 import time
 import matplotlib.pyplot as plt
+import sys
 
 from .toric_model import *
 from .util import Action
 from .mcmc import *
 from .reward import *
+
+from .toric_model import Toric_code
+from .mcmc import *
+
+
+
+
 
 '''
 def test_tolerence_all_seeds(eps_interval=[0,0.1],norm_tol=[0.09,0.2],convergence_criteria='distr_based'):
@@ -51,8 +59,44 @@ def sucess_and_correspondence_tester(seed_number,iterations=1000):
           if i >= 1:
               print('#' + str(i) +" current success rate: ", success/(i+1))
               print('#' + str(i) + " current correspondence: ", correspondence/(i+1))   
-  '''  
-def test_distribution_convergence(convergence_criteria='distr_based',eps=0.1,n_tol=0.05):
+  ''' 
+def test_numeric_distribution_convergence(convergence_criteria='distr_based',eps=0.1,n_tol=0.05,bool=False):
+    arr=test_distribution_convergence(convergence_criteria,eps,n_tol,True)
+    nmbr_1st=0
+    nmbr_2nd=0
+    nmbr_3rd=0
+    temp=np.zeros(16)
+    temp2=0
+    for i in range(16):
+        temp2=arr[i]
+        idx=temp2.index(max(temp2))
+        temp[idx]=temp[idx]+1
+    nmbr_1st=max(temp)
+    temp=np.zeros(16)
+    for i in range(16):
+        temp2=arr[i]
+        idx=temp2.index(max(temp2))
+        temp2[idx]=0
+        idx=temp2.index(max(temp2))
+        temp[idx]=temp[idx]+1
+    nmbr_2nd=max(temp)
+
+    temp=np.zeros(16)
+    for i in range(16):
+        temp2=arr[i]
+        idx=temp2.index(max(temp2))
+        temp2[idx]=0
+        idx=temp2.index(max(temp2))
+        temp2[idx]=0
+        idx=temp2.index(max(temp2))
+        temp[idx]=temp[idx]+1
+    nmbr_3rd=max(temp)
+    f=open("data_" + convergence_criteria + '_eps' + str(eps)+ '_ntol' + str(n_tol))
+    f.write("Number of equivalent 1st: " + str(nmbr_1st) + "\n Number of equivalent 2nd: "+ str(nmbr_2nd) + "\n Number of equivalent 3rd: "+ str(nmbr_3rd))
+    
+    
+
+def test_distribution_convergence(convergence_criteria='distr_based',eps=0.1,n_tol=0.05,bool=False):
     torr=seed(1)
     print('Equivalence class of seed(1): ' + str(define_equivalence_class(torr.qubit_matrix)))
     array_of_distributions=[]
@@ -62,19 +106,19 @@ def test_distribution_convergence(convergence_criteria='distr_based',eps=0.1,n_t
         [_,_,temp,_] = parallel_tempering(t, 9, 0.1, 2, 10, eps,n_tol, 100000, 10, convergence_criteria)
         array_of_distributions += [temp]
     x = [ 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16] 
-    for i in range(16):
-        height = array_of_distributions[i]
-        height=np.divide(height,np.sum(height))
-        tick_label = ['1', '2', '3', '4', '5','6','7','8','9','10','11','12','13','14','15','16']
-        plt.subplot(4,4,i+1) 
-        plt.bar(x, height, tick_label = tick_label, width = 0.8, color = ['red', 'green'])
-        axes = plt.gca()
-        axes.set_ylim([0,1])
-        plt.xlabel('Equivalence classes') 
-        plt.ylabel('y - axis') 
-        plt.title('') 
-        
-    plt.show() 
+    if bool:
+        for i in range(16):
+            height = array_of_distributions[i]
+            height=np.divide(height,np.sum(height))
+            tick_label = ['1', '2', '3', '4', '5','6','7','8','9','10','11','12','13','14','15','16']
+            plt.subplot(4,4,i+1) 
+            plt.bar(x, height, tick_label = tick_label, width = 0.8, color = ['red', 'green'])
+            axes = plt.gca()
+            axes.set_ylim([0,1])
+            plt.xlabel('Equivalence classes') 
+            plt.ylabel('y - axis') 
+            plt.title('') 
+        plt.show() 
     return array_of_distributions
     
 def time_all_seeds(convergence_criteria='distr_based',eps=0.1,n_tol=0.5):
@@ -199,5 +243,14 @@ def seed(number):
         [toric.qubit_matrix,_]=apply_logical_horizontal(toric.qubit_matrix,1,3)
         [toric.qubit_matrix,_]=apply_logical_horizontal(toric.qubit_matrix,1,1)
         return toric
-    
-    
+        
+convergence_criteria=str(sys.argv[1])
+if convergence_criteria=='distr_based':
+    eps=10
+    n_tol=float(sys.argv[2])
+else:
+    eps=float(sys.argv[2])
+    n_tol=10
+
+print("eps: "+ str(eps) +", n_tol: " + str(n_tol))
+print("Number of seed with same largest bin: " + str(test_numeric_distribution_convergence(convergence_criteria,eps,n_tol,bool=True)))   
