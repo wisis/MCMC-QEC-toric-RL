@@ -9,7 +9,7 @@ import sys
 
 
 class MCMCDataReader:  # This is the object we crate to read a file during training
-    def __init__(self, file_path, size, df_name='df'):  # lägg till en df för metadata? typ size, isf ha HDF?
+    def __init__(self, file_path, size):
         self.__file_path = file_path
         self.__size = size
         self.__df = pd.read_pickle(file_path)
@@ -23,7 +23,7 @@ class MCMCDataReader:  # This is the object we crate to read a file during train
             self.__current_index += 1
             return qubit_matrix, eq_distr
         else:
-            return None, None  # How do we do this nicely?
+            return None, None  # How do we do this nicely? Maybe it can wrap around?
     
     def has_next(self):
         return self.__current_index < self.__capacity
@@ -31,24 +31,9 @@ class MCMCDataReader:  # This is the object we crate to read a file during train
     def current_index(self):
         return self.__current_index
 
-# some functionality to stop mid run and save?
-# https://stackoverflow.com/questions/7180914/pause-resume-a-python-script-in-middle
 
 #@profile  # Efter att ha kört med profiler med 20 steps, 10 iters (to little hehe) tar ändå parallell tempering 97% av tiden
-def generate(file_path, max_capacity=10000, nbr_datapoints=10, df_name='df'):
-    # All paramteters for data generation is set here, some may be irrelevant depending on the choice of others
-    params = {  'size':5,
-                'p':0.10,
-                'Nc':11,
-                'steps':10000000,
-                'iters':10,
-                'conv_criteria':'distr_based',
-                'SEQ':2,
-                'TOPS':10,
-                'eps':0.1}
-
-    size = 5
-
+def generate(file_path, params, max_capacity=10000, nbr_datapoints=100000000):
     # Vi behöver öppna filen och kolla hur många entrys som finns
     try:
         df = pd.read_pickle(file_path)
@@ -69,16 +54,18 @@ def generate(file_path, max_capacity=10000, nbr_datapoints=10, df_name='df'):
         print('Starting generation of point nr: ' + str(i + 1))
         
         # Initiate toric
-        init_toric = Toric_code(size)
+        init_toric = Toric_code(params['size'])
         init_toric.generate_random_error(params['p'])
 
         # generate data for DataFrame storage  OBS now using full bincount, change this
-        [df_eq_distr, _, _, _] = parallel_tempering(init_toric, 9, p=0.10, steps=params['steps'], iters=10, conv_criteria='distr_based')
-        df_qubit = init_toric.qubit_matrix.reshape((-1))  # can also use flatten here?
+        [df_eq_distr, _, _, _] = parallel_tempering(init_toric, params['Nc'],p=params['p'], steps=params['steps'],
+                                                                iters=params['iters'], conv_criteria=params['conv_criteria'])
+        
+        df_qubit = init_toric.qubit_matrix.reshape((-1))  # flatten qubit matrix to store in dataframe
         
         # create indices for generated data
         names = ['data_nr', 'layer', 'x', 'y']
-        index_qubit = pd.MultiIndex.from_product([[i], np.arange(2), np.arange(size), np.arange(size)], names=names)
+        index_qubit = pd.MultiIndex.from_product([[i], np.arange(2), np.arange(params['size']), np.arange(params['size'])], names=names)
         index_distr = pd.MultiIndex.from_product([[i], np.arange(16)+2, [0], [0]], names=names)
 
         # Add data to Dataframes
@@ -90,20 +77,46 @@ def generate(file_path, max_capacity=10000, nbr_datapoints=10, df_name='df'):
         df_list.append(df_distr)
 
         # Add to df and save somewhat continuously ----------------------------
+        if (i + 1) % 1000 == 0:
+            df = df.append(df_list)
+            df_list.clear()
+            print(colored('Intermediate save point reached (writing over)', 'green'))
+            df.to_pickle(file_path)
 
     if len(df_list) > 0:
         df = df.append(df_list)
-        print(colored('\nSaving all generated data', 'green'))
+        print(colored('\nSaving all generated data (writing over)', 'green'))
         df.to_pickle(file_path)
     
     print(colored('\nCompleted', 'green'))
 
 
 if __name__ == '__main__':
-    file_path=os.path.join(os.getcwd(), "data", 'data.xz')
-    generate(file_path, 1000, 30)
+    # All paramteters for data generation is set here, some may be irrelevant depending on the choice of others
+    params = {  'size':5,
+                'p':0.10,
+                'Nc':11,
+                'steps':100,
+                'iters':10,
+                'conv_criteria':'none',
+                'SEQ':2,
+                'TOPS':10,
+                'eps':0.1}
+
+    # get job array id
+    try:
+        array_id = str(sys.argv[1])
+    except:
+        array_id = '0002'
+
+    # build file path
+    file_path=os.path.join(os.getcwd(), "data", 'data_' + array_id + '.xz')
+    
+    # generate data
+    generate(file_path, params, 15)
+    
     #view_all_data(file_path)
-    iterator = MCMCDataReader(file_path, 5)
+    iterator = MCMCDataReader(file_path, params['size'])
     while iterator.has_next():
         print(colored('Datapoint nr: '+ str(iterator.current_index() + 1), 'red'))
         print(iterator.next())
