@@ -2,6 +2,7 @@ import numpy as np
 import random as rand
 import copy
 import collections 
+from tqdm import tqdm
 
 from numba import jit, prange
 from .toric_model import Toric_code
@@ -78,14 +79,15 @@ def parallel_tempering(init_toric, Nc=None, p=0.1, SEQ=5, TOPS=10, eps = 1000, n
         ladder[i].toric = copy.deepcopy(init_toric)  # give all the same initial state
     ladder[Nc - 1].p_logical = 0.5  # set probability of application of logical operator in top chain
 
-    bottom_equivalence_classes = np.zeros(steps, dtype=int)
+    bottom_equivalence_classes = []
+    mean_history = np.zeros((steps,16))
 
-    for j in range(steps):
+    for j in tqdm(range(steps)):
         # run mcmc for each chain [steps] times
         for i in range(Nc):
             for _ in range(iters):
                 ladder[i].update_chain()
-        # now attempt flips from the top down
+        # current_eq attempt flips from the top down
         ladder[-1].flag = 1
         for i in reversed(range(Nc - 1)):
             r_flip(ladder[i], ladder[i + 1])
@@ -125,9 +127,18 @@ def parallel_tempering(init_toric, Nc=None, p=0.1, SEQ=5, TOPS=10, eps = 1000, n
         	if counter == nbr_steps_after_convergence: 
         		break 
             
+        bottom_equivalence_classes.append(define_equivalence_class(ladder[0].toric.qubit_matrix))
         
-        bottom_equivalence_classes[j] = define_equivalence_class(ladder[0].toric.qubit_matrix)
+        # Karls tillägg för att räkna hur medelekvivalensvärden utvecklas
+        current_eq = define_equivalence_class(ladder[0].toric.qubit_matrix)
+        if j > 0:
+            mean_history[j, :] = mean_history[j-1, :] * (j) / (j+1)
+            mean_history[j, current_eq]  = mean_history[j, current_eq] + 1 / (j+1)
+        else:
+            mean_history[j, current_eq] = 1
 
+
+            
     # plot all chains
     for i in range(Nc):
         ladder[i].plot('Chain_' + str(i))
@@ -142,7 +153,7 @@ def parallel_tempering(init_toric, Nc=None, p=0.1, SEQ=5, TOPS=10, eps = 1000, n
     #print('Before Count:\n', eq_class_count_BC)
     #print("NORM: ", np.linalg.norm(eq_class_count_AC))
     distr = (np.divide(eq_class_count_AC, np.sum(eq_class_count_AC)) * 100).astype(np.uint8)
-    return [distr, eq_class_count_BC,eq_class_count_AC,ladder[0]]
+    return [distr, eq_class_count_BC,eq_class_count_AC,ladder[0], mean_history]
 
 
 def conv_crit_error_based(bottom_chain, nbr_errors_bottom_chain, eq_class_distr, tops0, TOPS, SEQ, eps):#  Konvergenskriterium 1 i papper

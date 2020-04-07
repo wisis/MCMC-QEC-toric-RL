@@ -56,21 +56,31 @@ def convergence_tester():
 
 
 def main3():
-    points = 1
-    size = 5
+    points = 60
+    size = 7
     init_toric = Toric_code(size)
     Nc = 15
-    p_error = [i*0.005 + 0.01 for i in range(points)]
+    p_error = [i*0.01 + 0.01 for i in range(points)]
 
     # define error
-    action = Action(position = np.array([1, 2, 1]), action = 1) #([vertical=0,horisontal=1, y-position, x-position]), action = x=1,y=2,z=3,I=0)
+    action = Action(position = np.array([1, 1, 0]), action = 2) #([vertical=0,horisontal=1, y-position, x-position]), action = x=1,y=2,z=3,I=0)
     init_toric.step(action)#1
-    action = Action(position = np.array([1, 3, 1]), action = 1)
+    action = Action(position = np.array([1, 2, 0]), action = 1)
     init_toric.step(action)#2
-    action = Action(position = np.array([1, 1, 2]), action = 1)
+    action = Action(position = np.array([1, 3, 0]), action = 1)
     init_toric.step(action)#2
-    #action = Action(position = np.array([0, 3, 2]), action = 1)
-    #init_toric.step(action)#2
+    action = Action(position = np.array([1, 4, 0]), action = 1)
+    init_toric.step(action)#2
+    action = Action(position = np.array([1, 6, 2]), action = 3)
+    init_toric.step(action)#2
+    action = Action(position = np.array([1, 6, 3]), action = 3)
+    init_toric.step(action)#2
+    action = Action(position = np.array([1, 6, 4]), action = 3)
+    init_toric.step(action)#2
+    action = Action(position = np.array([1, 6, 1]), action = 2)
+    init_toric.step(action)#2
+
+    #init_toric.generate_n_random_errors(9)
 
     init_toric.syndrom('next_state')
     
@@ -87,7 +97,7 @@ def main3():
     for i in range(points):
         #init_toric.qubit_matrix, _ = apply_random_logical(startingqubit)
 
-        [distr, eq_class_count_BC,eq_class_count_AC,chain0] = parallel_tempering(init_toric, 9, p=p_error[i], steps=1000000, iters=10, conv_criteria='none')
+        [distr, eq_class_count_BC,eq_class_count_AC,chain0] = parallel_tempering(init_toric, 15, p=p_error[i], steps=500000, iters=10, conv_criteria='none')
         #print("error #" + str(i) + ': ', eq_class_count_BC/np.sum(eq_class_count_BC))
         distr_i = eq_class_count_BC/np.sum(eq_class_count_BC)
         data.append(distr_i)
@@ -99,12 +109,50 @@ def main3():
         plt.plot(p_error, data[:,i], label=('eq_class_' + str(i+1)))
     plt.xlabel('Error rate, p')
     plt.ylabel('Probability of equivalance class')
+    plt.title('init: k3')
     plt.legend(loc=1)
 
     plt.show()
         
     print("runtime: ", time.time()-t1)
-          
+
+
+def eq_evolution():
+    size = 5
+    init_toric = Toric_code(size)
+    p_error = 0.1
+
+    # define error
+    action = Action(position = np.array([1, 1, 0]), action = 2) #([vertical=0,horisontal=1, y-position, x-position]), action = x=1,y=2,z=3,I=0)
+    init_toric.step(action)#1
+    action = Action(position = np.array([1, 2, 0]), action = 1)
+    init_toric.step(action)#2
+    action = Action(position = np.array([1, 3, 0]), action = 1)
+    init_toric.step(action)#2
+
+    # eller använd någon av dessa för att initiera slumpartat
+    #nbr_error = 9
+    #init_toric.generate_n_random_errors(nbr_error)
+    #init_toric.generate_random_error(0.10)
+    init_toric.syndrom('next_state')
+
+
+    # plot initial error configuration
+    init_toric.plot_toric_code(init_toric.next_state, 'Chain_init')
+    t1 = time.time()
+
+    starting_qubit = init_toric.qubit_matrix
+
+    for i in range(2):
+        init_toric.qubit_matrix, _ = apply_random_logical(starting_qubit)
+
+        [distr, eq_class_count_BC,eq_class_count_AC,chain0, mean_history] = parallel_tempering(init_toric, 15, p=p_error, steps=10000, iters=10, conv_criteria='none')
+
+        plt.plot(mean_history)
+        plt.savefig('plots/history_'+str(i+1)+'.png')
+
+    print("runtime: ", time.time()-t1)
+
 """
 def main():
     size = 5
@@ -230,4 +278,4 @@ def saveData(init_qubit_matrix, distr, params):
 """
 if __name__ == '__main__':
     #convergence_tester()
-    main3()
+    eq_evolution()
