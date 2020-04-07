@@ -2,7 +2,10 @@ import numpy as np
 import random as rand
 import copy
 import collections 
-
+from tqdm import tqdm
+import arviz as az
+#from arviz.utils import conditional_jit, Numba
+#from arviz.stats import geweke
 from numba import jit, prange
 from .toric_model import Toric_code
 from .util import Action
@@ -44,7 +47,7 @@ class Chain:
         self.toric.syndrom('next_state')
         self.toric.plot_toric_code(self.toric.next_state, name)
 
-
+    
 #@profile
 def parallel_tempering(init_toric, Nc=None, p=0.1, SEQ=5, TOPS=10, tops_burn=2, eps = 0.001, n_tol=1e-4, steps=1000, iters=10, conv_criteria='error_based'):
     size = init_toric.system_size
@@ -168,6 +171,14 @@ def parallel_tempering_analysis(init_toric, Nc=None, p=0.1, SEQ=5, TOPS=10, tops
         # every criteria gets an empty list, a number and a bool. 
         # The empty list represents eq_class_distr, the number is the step where convergence is reached, and the bool is whether convergence has been reached
         crits_distr[crit] = [[], -1, False]
+    convergence_reached = 0
+    nbr_errors_bottom_chain = []
+    eq_count = np.zeros(16)
+    eq_class_distr = []
+    eq = []
+    counter = 0
+    nbr_steps_after_convergence = 10000
+    test_convergence = True
 
     # plot initial error configuration
     init_toric.plot_toric_code(init_toric.next_state, 'Chain_init')
@@ -193,6 +204,55 @@ def parallel_tempering_analysis(init_toric, Nc=None, p=0.1, SEQ=5, TOPS=10, tops
             tops0 += 1
             ladder[0].flag = 0
 
+        if conv_criteria == 'error_based':
+            nbr_errors_bottom_chain.append(np.count_nonzero(ladder[0].toric.qubit_matrix))
+            if tops0 >= TOPS:
+                stop, convergence_reached = conv_crit_error_based(ladder[0], nbr_errors_bottom_chain, eq_class_distr, tops0, TOPS, SEQ, eps)
+                if stop:
+                    tops0 = TOPS
+                    #eq_class_distr.clear()
+                else:
+                    eq_class_distr.append(define_equivalence_class(ladder[0].toric.qubit_matrix))
+        if conv_criteria == 'distr_based':
+            if tops0 >= 2:
+                eq.append(define_equivalence_class(ladder[0].toric.qubit_matrix))
+            if tops0 >= TOPS:
+                eq_class_distr.append(define_equivalence_class(ladder[0].toric.qubit_matrix))
+                convergence_reached = conv_crit_distr_based(ladder[0], eq, eq_count,n_tol)
+        """if conv_criteria == 'geweke' and test_convergence == True:
+            if tops0 >= 2:
+                eq.append(define_equivalence_class(ladder[0].toric.qubit_matrix))
+            if tops0 >= TOPS:
+                eq_last = define_equivalence_class(ladder[0].toric.qubit_matrix)
+                convergence_reached = conv_crit_geweke(eq, tops0, TOPS, SEQ)
+                if convergence_reached == True: 
+                    test_convergence == False
+                eq.append(eq_last)"""
+        if conv_criteria == 'majority_based':
+             if tops0 >= 1:
+                 convergence_reached, majority_class = conv_crit_majority_based(ladder[0], eq, tops0, TOPS, SEQ) 
+                 #returns the majority class that becomes obvious right when convergence is reached
+        if convergence_reached and conv_criteria == 'distr_based':  # converged, append eq:s to list
+            counter+=1
+            if counter == nbr_steps_after_convergence: break 
+        elif convergence_reached and conv_criteria == 'error_based':
+            counter+=1
+            if counter == nbr_steps_after_convergence: break 
+        
+        """elif convergence_reached and conv_criteria == 'geweke':  # converged, append eq:s to list
+            counter+=1
+            eq_class_distr.append(define_equivalence_class(ladder[0].toric.qubit_matrix))
+            if counter == nbr_steps_after_convergence: break """
+        
+        elif convergence_reached and conv_criteria == 'majority_based': 
+			bottom_equivalence_classes.append(define_equivalence_class(ladder[0].toric.qubit_matrix))
+			counter+=1
+			eq_class_distr.append(define_equivalence_class(ladder[0].toric.qubit_matrix))
+			#print("Majority class: ", majority_class)
+			if counter == nbr_steps_after_convergence: 
+				break 
+                           
+        # Karls tillägg för att räkna hur medelekvivalensvärden utvecklas
         current_eq = define_equivalence_class(ladder[0].toric.qubit_matrix)
 
         # current class count is previous class count + the current class
@@ -245,8 +305,8 @@ def parallel_tempering_analysis(init_toric, Nc=None, p=0.1, SEQ=5, TOPS=10, tops
                     crits_distr['majority_based'][1] = since_burn
      
     # plot all chains
-    for i in range(Nc):
-        ladder[i].plot('Chain_' + str(i))
+    #for i in range(Nc):
+    #    ladder[i].plot('Chain_' + str(i))
 
     distr = (np.divide(eq[since_burn], since_burn + 1) * 100).astype(np.uint8)
 
@@ -313,6 +373,27 @@ def r_flip(qubit_lo, p_lo, qubit_hi, p_hi):
                     ne_lo += 1
                 if qubit_hi[i,j,k] != 0:
                     ne_hi += 1
+
+"""@conditional_jit
+def conv_crit_geweke(eq, tops0, TOPS, SEQ):
+    z_scores = az.geweke(np.asarray(eq), first=0.1, last=0.5, intervals = 20) #bottleneck due to conversion needs to be fixed 
+    condition = True
+    intervals=20
+    for i in range(intervals):
+        if np.all((np.absolute(z_scores[i,:])) > 1): condition = True
+        else: condition = False
+    if condition == True:
+        return tops0 >= SEQ+TOPS
+    else:
+        tops0 = TOPS
+    return False"""
+    
+        
+def r_flip(chain_lo, chain_hi):
+    p_lo = chain_lo.p
+    p_hi = chain_hi.p
+    ne_lo = np.count_nonzero(chain_lo.toric.qubit_matrix)
+    ne_hi = np.count_nonzero(chain_hi.toric.qubit_matrix)
     # compute eqn (5) in high threshold paper
     if rand.random() < ((p_lo / p_hi) * ((1 - p_hi) / (1 - p_lo))) ** (ne_hi - ne_lo):
         return True
