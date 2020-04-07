@@ -48,26 +48,32 @@ class Chain:
 
 
 #@profile
-def parallel_tempering(init_toric, Nc=None, p=0.1, SEQ=5, TOPS=10, eps = 1000, n_tol=2, steps=1000, iters=10, conv_criteria='error_based'):
+def parallel_tempering(init_toric, Nc=None, p=0.1, SEQ=5, TOPS=10, tops_burn=2, eps = 0.001, n_tol=1e-4, steps=1000, iters=10, conv_criteria='error_based'):
     size = init_toric.system_size
     Nc = Nc or size
 
     # create the diffrent chains in an array
     # number of chains in ladder, must be odd
-    try:
-        Nc % 2 == 0
-    except:
+    if not Nc % 2:
         print('Number of chains was not odd.')
+    
+    if tops_burn >= TOPS:
+        print('tops_burn has to be smaller than TOPS')
+    
     ladder = []  # ladder to store all chains
     p_end = 0.75  # p at top chain as per high-threshold paper
     tops0 = 0
-    convergence_reached = 0
-    nbr_errors_bottom_chain = []
-    eq_count = np.zeros(16)
-    eq_class_distr = []
-    eq = []
-    counter = 0
-    nbr_steps_after_convergence = 10000
+    resulting_burn_in = 0
+    nbr_errors_bottom_chain = np.zeros(steps)
+    eq = np.zeros([steps, 16], dtype=np.uint32) # list of class counts after burn in
+    eq_full = np.zeros([steps, 16], dtype=np.uint32) # list of class counts from start
+    # might only want one of these, as (eq_full[j] - eq[j - resulting_burn_in]) is constant
+
+    # used in error_based/majority_based instead of setting tops0 = TOPS
+    tops_error_based = 0
+    tops_majority_based = 0
+
+    convergence_reached = False
 
     # plot initial error configuration
     init_toric.plot_toric_code(init_toric.next_state, 'Chain_init')
@@ -78,9 +84,6 @@ def parallel_tempering(init_toric, Nc=None, p=0.1, SEQ=5, TOPS=10, eps = 1000, n
         ladder.append(Chain(size, p_i))
         ladder[i].toric = copy.deepcopy(init_toric)  # give all the same initial state
     ladder[Nc - 1].p_logical = 0.5  # set probability of application of logical operator in top chain
-
-    bottom_equivalence_classes = []
-    mean_history = np.zeros((steps,16))
 
     for j in tqdm(range(steps)):
         # run mcmc for each chain [steps] times
@@ -95,127 +98,225 @@ def parallel_tempering(init_toric, Nc=None, p=0.1, SEQ=5, TOPS=10, eps = 1000, n
             tops0 += 1
             ladder[0].flag = 0
 
-        if conv_criteria == 'error_based':
-            nbr_errors_bottom_chain.append(np.count_nonzero(ladder[0].toric.qubit_matrix))
-            if tops0 >= TOPS:
-                stop, convergence_reached = conv_crit_error_based(ladder[0], nbr_errors_bottom_chain, eq_class_distr, tops0, TOPS, SEQ, eps)
-                if stop:
-                    tops0 = TOPS
-                    #eq_class_distr.clear()
-                else:
-                    eq_class_distr.append(define_equivalence_class(ladder[0].toric.qubit_matrix))
-        if conv_criteria == 'distr_based':
-            if tops0 >= 2:
-                eq.append(define_equivalence_class(ladder[0].toric.qubit_matrix))
-            if tops0 >= TOPS:
-                eq_class_distr.append(define_equivalence_class(ladder[0].toric.qubit_matrix))
-                convergence_reached = conv_crit_distr_based(ladder[0], eq, eq_count,n_tol)
-        if conv_criteria == 'majority_based':
-         	if tops0 >= 1:
-         		convergence_reached, majority_class = conv_crit_majority_based(ladder[0], eq, tops0, TOPS, SEQ) 
-         		#returns the majority class that becomes obvious right when convergence is reached
-        if convergence_reached and conv_criteria == 'distr_based':  # converged, append eq:s to list
-            counter+=1
-            if counter == nbr_steps_after_convergence: break 
-        elif convergence_reached and conv_criteria == 'error_based':
-            counter+=1
-            if counter == nbr_steps_after_convergence: break 
-        elif convergence_reached and conv_criteria == 'majority_based': 
-        	counter+=1
-        	eq_class_distr.append(define_equivalence_class(ladder[0].toric.qubit_matrix))
-        	#print("Majority class: ", majority_class)
-        	if counter == nbr_steps_after_convergence: 
-        		break 
-            
-        bottom_equivalence_classes.append(define_equivalence_class(ladder[0].toric.qubit_matrix))
-        
-        # Karls tillägg för att räkna hur medelekvivalensvärden utvecklas
         current_eq = define_equivalence_class(ladder[0].toric.qubit_matrix)
-        if j > 0:
-            mean_history[j, :] = mean_history[j-1, :] * (j) / (j+1)
-            mean_history[j, current_eq]  = mean_history[j, current_eq] + 1 / (j+1)
+
+        # current class count is previous class count + the current class
+        # edge case j = 0 is ok. eq_full[-1] picks last element, which is initiated as zeros
+        eq_full[j] = eq_full[j - 1]
+        eq_full[j][current_eq] += 1
+
+        if tops0 >= tops_burn:
+            since_burn = j - resulting_burn_in
+
+            eq[since_burn] = eq[since_burn-1]
+            eq[since_burn][current_eq] += 1
+            nbr_errors_bottom_chain[since_burn] = np.count_nonzero(ladder[0].toric.qubit_matrix)
+
         else:
-            mean_history[j, current_eq] = 1
+            # number of steps until tops0 = 2
+            resulting_burn_in += 1
 
+        if not convergence_reached and tops0 >= TOPS and not since_burn % 10:
+            if conv_criteria == 'error_based':
+                tops_accepted = tops0 - tops_error_based
+                accept, convergence_reached = conv_crit_error_based(nbr_errors_bottom_chain, since_burn, tops_accepted, SEQ, eps)
+                if not accept:
+                    tops_error_based = tops0
 
+            if conv_criteria == 'distr_based':
+                convergence_reached = conv_crit_distr_based(eq, since_burn, n_tol)
+
+            if conv_criteria == 'majority_based':
+                #returns the majority class that becomes obvious right when convergence is reached
+                tops_accepted = tops0 - tops_majority_based
+                accept, convergence_reached = conv_crit_majority_based(eq, since_burn, SEQ)
+            
+                # reset if majority classes in Q2 and Q4 are different
+                if not accept:
+                    tops_majority_based = tops0
             
     # plot all chains
     for i in range(Nc):
         ladder[i].plot('Chain_' + str(i))
 
-    # count number of occurrences of each equivalence class
-    # equivalence_class_count[i] is the number of occurences of equivalence class number 'i'
-    # if
-    eq_class_count_BC = np.bincount(bottom_equivalence_classes, minlength=16)
-    eq_class_count_AC = np.bincount(eq_class_distr, minlength=16)
-    #print('After Count:\n',eq_class_count_AC)
-    #print('Equivalence classes: \n', np.arange(16))
-    #print('Before Count:\n', eq_class_count_BC)
-    #print("NORM: ", np.linalg.norm(eq_class_count_AC))
-    distr = (np.divide(eq_class_count_AC, np.sum(eq_class_count_AC)) * 100).astype(np.uint8)
-    return [distr, eq_class_count_BC,eq_class_count_AC,ladder[0], mean_history]
+    distr = (np.divide(eq[since_burn], since_burn + 1) * 100).astype(np.uint8)
+    return [distr, eq, eq_full, ladder[0], resulting_burn_in]
 
 
-def conv_crit_error_based(bottom_chain, nbr_errors_bottom_chain, eq_class_distr, tops0, TOPS, SEQ, eps):#  Konvergenskriterium 1 i papper
-    second_quarter = nbr_errors_bottom_chain[(len(nbr_errors_bottom_chain) // 4): (len(nbr_errors_bottom_chain) // 4) * 2]
-    fourth_quarter = nbr_errors_bottom_chain[(len(nbr_errors_bottom_chain) // 4) * 3: (len(nbr_errors_bottom_chain) // 4) * 4]
-    Average_second_quarter = sum(second_quarter) / (len(second_quarter))
-    Average_fourth_quarter = sum(fourth_quarter) / (len(fourth_quarter))
-    error = abs(Average_second_quarter - Average_fourth_quarter)
+def parallel_tempering_analysis(init_toric, Nc=None, p=0.1, SEQ=5, TOPS=10, tops_burn=2, eps = 0.01, n_tol=1e-4, steps=1000, iters=10, conv_criteria=None):
+    size = init_toric.system_size
+    Nc = Nc or size
 
-    #if error > eps:
-    #    tops0 = TOPS
-    #    eq_class_distr.clear()
-    #else: 
-    #    eq_class_distr.append(define_equivalence_class(bottom_chain.toric.qubit_matrix))
-    return error > eps, tops0 >= TOPS + SEQ  # true if converged
-
-
-def conv_crit_distr_based(bottom_chain, eq, eq_count, norm_tol=0.05):
-    eq_last = define_equivalence_class(bottom_chain.toric.qubit_matrix)
-    eq = eq + [eq_last]
-    eq_count[eq_last] += 1
-    #bsump = np.sum(eq_count)
-    Q2_count = np.zeros(16)
-    Q4_count = np.zeros(16)
-
-    l = len(eq)
-
-    for i in range(l):
-        if i >= l // 4 and i <= l // 2:
-            Q2_count[eq[i]] = Q2_count[eq[i]] + 1
-        if i >= (l * 3) // 4 and i < l:
-            Q4_count[eq[i]] = Q4_count[eq[i]] + 1
+    # create the diffrent chains in an array
+    # number of chains in ladder, must be odd
+    if not Nc % 2:
+        print('Number of chains was not odd.')
     
-    #for i in range(16):
-        #print("ClassQ2: " + str(i))
-    # print(Q2_count[i]/(np.sum(Q2_count)))
-    #for i in range(16):
-        #print("ClassQ4: " + str(i))
-        #print(Q4_count[i]/(np.sum(Q4_count)))
+    if tops_burn >= TOPS:
+        print('tops_burn has to be smaller than TOPS')
 
-    #print("Norm: " + str(np.linalg.norm(Q4_count - Q2_count)) )
-    #print("Norm: "+ str(np.linalg.norm(np.divide(Q4_count-Q2_count, l))))
-    #print (norm_tol)
-    #print((np.linalg.norm(np.divide(Q4_count-Q2_count, l))) < norm_tol)
-    return (np.linalg.norm(np.divide(Q4_count-Q2_count, l))) < norm_tol
+    ladder = []  # ladder to store all chains
+    p_end = 0.75  # p at top chain as per high-threshold paper
+    tops0 = 0
+    resulting_burn_in = 0
+    nbr_errors_bottom_chain = np.zeros(steps)
+    eq = np.zeros([steps, 16], dtype=np.uint32) # list of class counts after burn in
+    eq_full = np.zeros([steps, 16], dtype=np.uint32) # list of class counts from start
+    # might only want one of these, as (eq_full[j] - eq[j - resulting_burn_in]) is constant  
 
+    # used in error_based/majority_based instead of setting tops0 = TOPS
+    tops_error_based = TOPS
+    tops_majority_based = TOPS
+    
+    # List of convergence criteria. Add any new ones to list
+    conv_criteria = conv_criteria or ['error_based', 'distr_based', 'majority_based']
+    # Dictionary to hold the converged distribution and the number of steps to converge, according to each criteria
+    crits_distr = {}
+    for crit in conv_criteria:
+        # every criteria gets an empty list, a number and a bool. 
+        # The empty list represents eq_class_distr, the number is the step where convergence is reached, and the bool is whether convergence has been reached
+        crits_distr[crit] = [[], -1, False]
 
-def conv_crit_majority_based(bottom_chain, eq, tops0, TOPS, SEQ):
-    count_last_quarter = None
-    eq.append(define_equivalence_class(bottom_chain.toric.qubit_matrix))
-    length = len(eq)
-    if tops0 >= TOPS:
-        count_second_half = collections.Counter(eq[length//2:])
-        count_second_half = sorted(eq[length//2:], key=lambda x: -count_second_half[x])[0]
-        count_last_quarter = collections.Counter(eq[(length-length//4):])
-        count_last_quarter = sorted(eq[(length-length//4):], key=lambda x: -count_last_quarter[x])[0]
-        if count_second_half-count_last_quarter == 0:
-            return tops0 >= SEQ+TOPS, count_last_quarter
+    # plot initial error configuration
+    init_toric.plot_toric_code(init_toric.next_state, 'Chain_init')
+
+    # add and copy state for all chains in ladder
+    for i in range(Nc):
+        p_i = p + ((p_end - p) / (Nc - 1)) * i
+        ladder.append(Chain(size, p_i))
+        ladder[i].toric = copy.deepcopy(init_toric)  # give all the same initial state
+    ladder[Nc - 1].p_logical = 0.5  # set probability of application of logical operator in top chain
+
+    for j in tqdm(range(steps)):
+        # run mcmc for each chain [steps] times
+        for i in range(Nc):
+            for _ in range(iters):
+                ladder[i].update_chain()
+        # current_eq attempt flips from the top down
+        ladder[-1].flag = 1
+        for i in reversed(range(Nc - 1)):
+            r_flip(ladder[i], ladder[i + 1])
+        if ladder[0].flag == 1:
+            tops0 += 1
+            ladder[0].flag = 0
+
+        current_eq = define_equivalence_class(ladder[0].toric.qubit_matrix)
+
+        # current class count is previous class count + the current class
+        # edge case j = 0 is ok. eq_full[-1] picks last element, which is initiated as zeros
+        eq_full[j] = eq_full[j-1]
+        eq_full[j][current_eq] += 1
+
+        if tops0 >= tops_burn:
+            since_burn = j - resulting_burn_in
+
+            eq[since_burn] = eq[since_burn-1]
+            eq[since_burn][current_eq] += 1
+            nbr_errors_bottom_chain[since_burn] = np.count_nonzero(ladder[0].toric.qubit_matrix)
+
+            '''
+            # Karls tillagg för att rakna hur medelekvivalensvärden utvecklas
+            if since_burn > 0:
+                mean_history[since_burn, :] = mean_history[since_burn-1, :] * (since_burn) / (since_burn+1)
+                mean_history[since_burn, current_eq] += 1 / (since_burn+1)
+            else:
+                mean_history[since_burn, current_eq] = 1
+            '''
+
         else:
-            tops0 = TOPS
-            return False, count_last_quarter
-    return False, count_last_quarter
+            # number of steps until tops0 = 2
+            resulting_burn_in += 1
+        
+        if tops0 >= TOPS and not since_burn % 10:
+            if 'error_based' in conv_criteria and not crits_distr['error_based'][2]:
+                tops_accepted = tops0 - tops_error_based
+                accept, crits_distr['error_based'][2] = conv_crit_error_based(nbr_errors_bottom_chain, since_burn, tops_accepted, SEQ, eps)
+                
+                # Reset if difference in nbr_errors between Q2 and Q4 is too different
+                if not accept:
+                    tops_error_based = tops0
+
+                # Converged
+                if crits_distr['error_based'][2]:
+                    crits_distr['error_based'][1] = since_burn
+
+            if 'distr_based' in conv_criteria and not crits_distr['distr_based'][2]:
+                crits_distr['distr_based'][2] = conv_crit_distr_based(eq, since_burn, n_tol)
+
+                # Converged
+                if crits_distr['distr_based'][2]:
+                    crits_distr['distr_based'][1] = since_burn
+
+            if 'majority_based' in conv_criteria and not crits_distr['majority_based'][2]:
+         		# returns the majority class that becomes obvious right when convergence is reached
+                tops_accepted = tops0 - tops_majority_based
+                accept, crits_distr['majority_based'][2] = conv_crit_majority_based(eq, since_burn, tops_accepted, SEQ)
+                
+                # reset if majority classes in Q2 and Q4 are different
+                if not accept:
+                    tops_majority_based = tops0
+
+                # Converged
+                if crits_distr['majority_based'][2]:
+                    crits_distr['majority_based'][1] = since_burn
+     
+    # plot all chains
+    for i in range(Nc):
+        ladder[i].plot('Chain_' + str(i))
+
+    distr = (np.divide(eq[since_burn], since_burn + 1) * 100).astype(np.uint8)
+
+    for crit in conv_criteria:
+        #Check if converged
+        if crits_distr[crit][2]:
+            # Calculate converged distribution from converged class count
+            crits_distr[crit][0] = np.divide(eq[crits_distr[crit][1]], crits_distr[crit][1] + 1) # Divide by "index+1" since first index is 0
+
+    return [distr, eq, eq_full, ladder[0], resulting_burn_in, crits_distr]
+
+
+def conv_crit_error_based(nbr_errors_bottom_chain, since_burn, tops_accepted, SEQ, eps):# Konvergenskriterium 1 i papper
+    # last nonzero element of nbr_errors_bottom_chain is since_burn. Length of nonzero part is since_burn + 1
+    l = since_burn + 1
+    # Calculate average number of errors in 2nd and 4th quarter
+    Average_Q2 = np.average(nbr_errors_bottom_chain[(l // 4): (l // 2)])
+    Average_Q4 = np.average(nbr_errors_bottom_chain[(3 * l // 4): l])
+
+    #Compare averages
+    error = abs(Average_Q2 - Average_Q4)
+    
+    if error < eps:
+        return True, tops_accepted >= SEQ
+    else:
+        return False, False
+
+
+def conv_crit_distr_based(eq, since_burn, norm_tol=0.05): 
+    # last nonzero element of eq is since_burn. Length of nonzero part is since_burn + 1
+    l = since_burn + 1
+    # Classes found during Q2 is (classes found in first half) - (classes found in first quarter)
+    Q2_count = eq[l // 2] - eq[l // 4]
+    Q4_count = eq[l - 1] - eq[3 * l // 4]
+    
+    # Q2_count and Q4_count are unsigned ints. Have to convert to not overflow (ja, det hände)
+    Q_diff = (Q4_count - Q2_count).astype(np.int32)
+    return np.linalg.norm(np.divide(Q_diff, l, dtype=np.float)) < norm_tol
+
+
+def conv_crit_majority_based(eq, since_burn, tops_accepted, SEQ):
+    # last nonzero element of eq is since_burn. Length of nonzero part is since_burn + 1
+    l = since_burn + 1
+    # Classes found during Q2 is (classes found in first half) - (classes found in first quarter)
+    Q2_count = eq[l // 2] - eq[l // 4]
+    Q4_count = eq[l - 1] - eq[3 * l // 4]
+    
+    count_max_Q2 = np.argmax(Q2_count)
+    count_max_Q4 = np.argmax(Q4_count)
+
+    if count_max_Q2 == count_max_Q4:
+        return True, tops_accepted >= SEQ
+    else:
+        return False, False
 
 
 def r_flip(chain_lo, chain_hi):
