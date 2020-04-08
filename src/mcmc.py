@@ -23,24 +23,23 @@ class Chain:
         self.p_logical = 0
         self.flag = 0
 
-    def update_chain(self):
-        if rand.random() < self.p_logical:
-            new_matrix, qubit_errors_change = apply_random_logical(self.toric.qubit_matrix)
-        else:
-            new_matrix, qubit_errors_change = apply_random_stabilizer(self.toric.qubit_matrix)
+    def update_chain(self, iters):
+        for _ in range(iters):
+            if rand.random() < self.p_logical:
+                new_matrix, qubit_errors_change = apply_random_logical(self.toric.qubit_matrix)
+            else:
+                new_matrix, qubit_errors_change = apply_random_stabilizer(self.toric.qubit_matrix)
 
-        #r = r_chain(self.toric.qubit_matrix, new_matrix, self.p)
+            #r = r_chain(self.toric.qubit_matrix, new_matrix, self.p)
 
-        # Avoid calculating r if possible. If self.p is 0.75 r = 1 and we accept all changes
-        # If the new qubit matrix has equal or fewer errors, r >= 1 and we also accept all changes
-        if self.p >= 0.75 or qubit_errors_change <= 0:
-            self.toric.qubit_matrix = new_matrix
-            return
-        
-        r = ((self.p / 3.0) / (1.0 - self.p)) ** qubit_errors_change
-
-        if rand.random() < r:
-            self.toric.qubit_matrix = new_matrix
+            # Avoid calculating r if possible. If self.p is 0.75 r = 1 and we accept all changes
+            # If the new qubit matrix has equal or fewer errors, r >= 1 and we also accept all changes
+            if self.p >= 0.75 or qubit_errors_change <= 0:
+                self.toric.qubit_matrix = new_matrix
+                continue
+            
+            if rand.random() < ((self.p / 3.0) / (1.0 - self.p)) ** qubit_errors_change:
+                self.toric.qubit_matrix = new_matrix
 
     def plot(self, name):
         self.toric.syndrom('next_state')
@@ -88,12 +87,13 @@ def parallel_tempering(init_toric, Nc=None, p=0.1, SEQ=5, TOPS=10, tops_burn=2, 
     for j in tqdm(range(steps)):
         # run mcmc for each chain [steps] times
         for i in range(Nc):
-            for _ in range(iters):
-                ladder[i].update_chain()
+            ladder[i].update_chain(iters)
         # current_eq attempt flips from the top down
         ladder[-1].flag = 1
         for i in reversed(range(Nc - 1)):
-            r_flip(ladder[i], ladder[i + 1])
+            if r_flip(ladder[i].toric.qubit_matrix, ladder[i].p, ladder[i+1].toric.qubit_matrix, ladder[i+1].p):
+                ladder[i].toric, ladder[i+1].toric = ladder[i+1].toric, ladder[i].toric
+                ladder[i].flag, ladder[i+1].flag = ladder[i+1].flag, ladder[i].flag
         if ladder[0].flag == 1:
             tops0 += 1
             ladder[0].flag = 0
@@ -190,12 +190,13 @@ def parallel_tempering_analysis(init_toric, Nc=None, p=0.1, SEQ=5, TOPS=10, tops
     for j in tqdm(range(steps)):
         # run mcmc for each chain [steps] times
         for i in range(Nc):
-            for _ in range(iters):
-                ladder[i].update_chain()
+            ladder[i].update_chain(iters)
         # current_eq attempt flips from the top down
         ladder[-1].flag = 1
         for i in reversed(range(Nc - 1)):
-            r_flip(ladder[i], ladder[i + 1])
+            if r_flip(ladder[i].toric.qubit_matrix, ladder[i].p, ladder[i+1].toric.qubit_matrix, ladder[i+1].p):
+                ladder[i].toric, ladder[i+1].toric = ladder[i+1].toric, ladder[i].toric
+                ladder[i].flag, ladder[i+1].flag = ladder[i+1].flag, ladder[i].flag
         if ladder[0].flag == 1:
             tops0 += 1
             ladder[0].flag = 0
@@ -213,15 +214,6 @@ def parallel_tempering_analysis(init_toric, Nc=None, p=0.1, SEQ=5, TOPS=10, tops
             eq[since_burn] = eq[since_burn-1]
             eq[since_burn][current_eq] += 1
             nbr_errors_bottom_chain[since_burn] = np.count_nonzero(ladder[0].toric.qubit_matrix)
-
-            '''
-            # Karls tillagg för att rakna hur medelekvivalensvärden utvecklas
-            if since_burn > 0:
-                mean_history[since_burn, :] = mean_history[since_burn-1, :] * (since_burn) / (since_burn+1)
-                mean_history[since_burn, current_eq] += 1 / (since_burn+1)
-            else:
-                mean_history[since_burn, current_eq] = 1
-            '''
 
         else:
             # number of steps until tops0 = 2
@@ -318,22 +310,21 @@ def conv_crit_majority_based(eq, since_burn, tops_accepted, SEQ):
     else:
         return False, False
 
-
-def r_flip(chain_lo, chain_hi):
-    p_lo = chain_lo.p
-    p_hi = chain_hi.p
-    ne_lo = np.count_nonzero(chain_lo.toric.qubit_matrix)
-    ne_hi = np.count_nonzero(chain_hi.toric.qubit_matrix)
+@jit(nopython=True)
+def r_flip(qubit_lo, p_lo, qubit_hi, p_hi):
+    ne_lo = 0
+    ne_hi = 0
+    for i in range(2):
+        for j in range(qubit_lo.shape[1]):
+            for k in range(qubit_lo.shape[1]):
+                if qubit_lo[i,j,k] != 0:
+                    ne_lo += 1
+                if qubit_hi[i,j,k] != 0:
+                    ne_hi += 1
     # compute eqn (5) in high threshold paper
-    r = ((p_lo / p_hi) * ((1 - p_hi) / (1 - p_lo))) ** (ne_hi - ne_lo)
-    if rand.random() < r:
-        # flip them with prob r if r < 1
-        temp = chain_lo.toric
-        chain_lo.toric = chain_hi.toric
-        chain_hi.toric = temp
-        tempflag = chain_lo.flag
-        chain_lo.flag = chain_hi.flag
-        chain_hi.flag = tempflag
+    if rand.random() < ((p_lo / p_hi) * ((1 - p_hi) / (1 - p_lo))) ** (ne_hi - ne_lo):
+        return True
+    return False
 
 
 @jit(nopython=True)
