@@ -2,7 +2,6 @@ import numpy as np
 import random as rand
 import copy
 import collections 
-from tqdm import tqdm
 
 from numba import jit, prange
 from .toric_model import Toric_code
@@ -74,9 +73,6 @@ def parallel_tempering(init_toric, Nc=None, p=0.1, SEQ=5, TOPS=10, tops_burn=2, 
 
     convergence_reached = False
 
-    # plot initial error configuration
-    init_toric.plot_toric_code(init_toric.next_state, 'Chain_init')
-
     # add and copy state for all chains in ladder
     for i in range(Nc):
         p_i = p + ((p_end - p) / (Nc - 1)) * i
@@ -84,7 +80,7 @@ def parallel_tempering(init_toric, Nc=None, p=0.1, SEQ=5, TOPS=10, tops_burn=2, 
         ladder[i].toric = copy.deepcopy(init_toric)  # give all the same initial state
     ladder[Nc - 1].p_logical = 0.5  # set probability of application of logical operator in top chain
 
-    for j in tqdm(range(steps)):
+    for j in range(steps):
         # run mcmc for each chain [steps] times
         for i in range(Nc):
             ladder[i].update_chain(iters)
@@ -134,10 +130,6 @@ def parallel_tempering(init_toric, Nc=None, p=0.1, SEQ=5, TOPS=10, tops_burn=2, 
                 # reset if majority classes in Q2 and Q4 are different
                 if not accept:
                     tops_majority_based = tops0
-            
-    # plot all chains
-    for i in range(Nc):
-        ladder[i].plot('Chain_' + str(i))
 
     distr = (np.divide(eq[since_burn], since_burn + 1) * 100).astype(np.uint8)
     return [distr, eq, eq_full, ladder[0], resulting_burn_in]

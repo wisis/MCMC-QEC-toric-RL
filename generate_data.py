@@ -4,7 +4,6 @@ import numpy as np
 import copy
 import pandas as pd
 import os
-from termcolor import colored
 import sys
 
 
@@ -42,7 +41,7 @@ def generate(file_path, params, max_capacity=10000, nbr_datapoints=100000000):
         df = pd.DataFrame()
         nbr_existing_data = 0
 
-    print(colored('\nDataFrame with ' + str(nbr_existing_data) + ' datapoints opened at: ' + str(file_path), 'blue'))
+    print('\nDataFrame with ' + str(nbr_existing_data) + ' datapoints opened at: ' + str(file_path))
 
     # Stop the file from exceeding the max limit nbr of datapoints
     nbr_to_generate = min(max_capacity-nbr_existing_data, nbr_datapoints)
@@ -80,15 +79,15 @@ def generate(file_path, params, max_capacity=10000, nbr_datapoints=100000000):
         if (i + 1) % 1000 == 0:
             df = df.append(df_list)
             df_list.clear()
-            print(colored('Intermediate save point reached (writing over)', 'green'))
+            print('Intermediate save point reached (writing over)')
             df.to_pickle(file_path)
 
     if len(df_list) > 0:
         df = df.append(df_list)
-        print(colored('\nSaving all generated data (writing over)', 'green'))
+        print('\nSaving all generated data (writing over)')
         df.to_pickle(file_path)
     
-    print(colored('\nCompleted', 'green'))
+    print('\nCompleted')
 
 
 if __name__ == '__main__':
@@ -107,16 +106,16 @@ if __name__ == '__main__':
     try:
         array_id = str(sys.argv[1])
     except:
-        array_id = '0003'
+        array_id = '0'
 
     # build file path
-    file_path=os.path.join(os.getcwd(), "data", 'data_' + array_id + '.xz')
+    file_path=os.path.join('data_' + array_id + '.xz')
     
     # generate data
-    generate(file_path, params, 15)
+    generate(file_path, params, 10)
     
     #view_all_data(file_path)
     iterator = MCMCDataReader(file_path, params['size'])
     while iterator.has_next():
-        print(colored('Datapoint nr: '+ str(iterator.current_index() + 1), 'red'))
+        print('Datapoint nr: '+ str(iterator.current_index() + 1))
         print(iterator.next())
