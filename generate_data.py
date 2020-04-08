@@ -76,7 +76,7 @@ def generate(file_path, params, max_capacity=10000, nbr_datapoints=100000000):
         df_list.append(df_distr)
 
         # Add to df and save somewhat continuously ----------------------------
-        if (i + 1) % 1000 == 0:
+        if (i + 1) % 3 == 0:
             df = df.append(df_list)
             df_list.clear()
             print('Intermediate save point reached (writing over)')
@@ -105,14 +105,16 @@ if __name__ == '__main__':
     # get job array id
     try:
         array_id = str(sys.argv[1])
+        local_dir = str(sys.argv[2])
     except:
-        array_id = '0'
+        print('invalid sysargs')
+        return
 
     # build file path
-    file_path=os.path.join('data_' + array_id + '.xz')
+    file_path=os.path.join(local_dir, 'data_' + array_id + '.xz')
     
     # generate data
-    generate(file_path, params, 10)
+    generate(file_path, params, 10, 5)
     
     #view_all_data(file_path)
     iterator = MCMCDataReader(file_path, params['size'])
