@@ -58,7 +58,7 @@ def generate(file_path, params, max_capacity=10000, nbr_datapoints=100000000):
         init_toric.generate_random_error(params['p'])
 
         # generate data for DataFrame storage  OBS now using full bincount, change this
-        [df_eq_distr, _, _, _] = parallel_tempering(init_toric, params['Nc'],p=params['p'], steps=params['steps'],
+        [df_eq_distr, _, _, _, _] = parallel_tempering(init_toric, params['Nc'],p=params['p'], steps=params['steps'],
                                                                 iters=params['iters'], conv_criteria=params['conv_criteria'])
         
         df_qubit = init_toric.qubit_matrix.reshape((-1))  # flatten qubit matrix to store in dataframe
@@ -96,7 +96,7 @@ if __name__ == '__main__':
     params = {  'size':5,
                 'p':0.10,
                 'Nc':11,
-                'steps':100,
+                'steps':10000,
                 'iters':10,
                 'conv_criteria':'none',
                 'SEQ':2,
@@ -107,7 +107,7 @@ if __name__ == '__main__':
     try:
         array_id = str(sys.argv[1])
     except:
-        array_id = '0002'
+        array_id = '0003'
 
     # build file path
     file_path=os.path.join(os.getcwd(), "data", 'data_' + array_id + '.xz')
