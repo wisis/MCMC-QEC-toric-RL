@@ -108,7 +108,7 @@ if __name__ == '__main__':
         local_dir = str(sys.argv[2])
     except:
         print('invalid sysargs')
-	array_id = '0'
+        array_id = '0'
         local_dir = '.'
 
     # build file path
