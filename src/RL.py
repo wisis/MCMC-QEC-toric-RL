@@ -23,7 +23,7 @@ from .util import incremental_mean, convert_from_np_to_tensor, Transition
 from src.mcmc import Chain
 #from reward import reward
 from generate_data import MCMCDataReader #####?? Ned to fix dependencies 
-
+    
 class RL():
     def __init__(self, Network, Network_name, system_size=int, p_error=0.1, replay_memory_capacity=int, learning_rate=0.00025,
                 discount_factor=0.95, number_of_actions=3, max_nbr_actions_per_episode=50, device='cpu', replay_memory='uniform'):
@@ -289,10 +289,10 @@ class RL():
         if terminal == True:
             #reward = reward(self.toric,self.correction_chain,self.p_error) #rewrad is the share of coorection_chains equivlaence class
             self.eq_class = self.correction_chain.define_equivalence_class(self.correction_chain.toric.qubit_matrix)
-    	    self.correction_chain=Chain(self.toric.system_size,self.p_error) #reset chain
-    	    return 100*self.eq_distr[self.eq_class] #proportional reward
+            self.correction_chain=Chain(self.toric.system_size,self.p_error) #reset chain
+            return 100*self.eq_distr[self.eq_class] #proportional reward
         else:
-        	return 0
+            return 0
         #else:
             #self.correction_chain.toric.step(a_last) #adds the action to the correction chain since it doesnt resolve the syndrom
          #   reward = 0                          #we only give reward at the end
