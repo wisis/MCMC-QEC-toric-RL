@@ -20,15 +20,14 @@ from .Replay_memory import Replay_memory_uniform, Replay_memory_prioritized
 from NN import NN_11, NN_17
 from ResNet import ResNet18, ResNet34, ResNet50, ResNet101, ResNet152
 from .util import incremental_mean, convert_from_np_to_tensor, Transition
-from mcmc import Chain
+from src.mcmc import Chain
 #from reward import reward
-from ..generate_data import MCMCDataReader #####?? Ned to fix dependencies 
+from generate_data import MCMCDataReader #####?? Ned to fix dependencies 
 
 class RL():
     def __init__(self, Network, Network_name, system_size=int, p_error=0.1, replay_memory_capacity=int, learning_rate=0.00025,
                 discount_factor=0.95, number_of_actions=3, max_nbr_actions_per_episode=50, device='cpu', replay_memory='uniform'):
-        self.correction_chain=Chain(self.toric.system_size,self.p_error)    # Correction chain added for implementing get_reward2(self)
-        self.a_last=Action(position = np.array([0, 0, 0]), action = 0)      # variable added for remembering latest action taken, also for implementing get_reward2(self)
+        
         # device
         self.device = device
         # Toric code
@@ -64,10 +63,22 @@ class RL():
         self.discount_factor = discount_factor
         self.number_of_actions = number_of_actions
         
-        ######added by Alexei 
-        self.eq_class_rule_table = np.array(([[0,1,2,3,4,5,6,7,8,9,10 ,11 ,12, 13, 14, 15],[ 1,  0,  3,  2,  5,  4,  7,  6,  9,  8, 11, 10, 13, 12, 15, 14],[ 4,  5,  6,  7,  0,  1,  2,  3, 12, 13, 14, 15,  8,  9, 10, 11],[ 2,  3,  0,  1,  6,  7,  4,  5, 10, 11,  8,  9, 14, 15, 12, 13],[ 8,  9, 10, 11, 12, 13, 14, 15,  0,  1,  2,  3,  4,  5,  6,  7], [ 3,  2,  1 , 0,  7,  6 , 5,  4, 11 ,10 , 9,  8, 15, 14, 13, 12],[12, 13 ,14 ,15,  8,  9, 10, 11,  4,  5,  6 , 7 , 0,  1,  2,  3]]),dtype = int)
+        """#####
+        #Table that returns the change of equivalence class with an operator in a specific layer. Rows stand for X1 X2 Z1 Z2 Y1 Y2 as defined in mcmc.py define_equivalence_class method. Columns stand for equivalence classes 
+        self.eq_class_rule_table = np.array(([[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15],
+                                              [1,0,3,2,5,4,7,6,9,8,11,10,13,12,15,14],
+                                              [4,5,6,7,0,1,2,3,12,13,14,15,8,9,10,11],
+                                              [2,3,0,1,6,7,4,5,10,11,8,9,14,15,12,13],
+                                              [8,9,10,11,12,13,14,15,0,1,2,3,4,5,6,7],
+                                              [3,2,1,0,7,6,5,4,11,10,9,8,15,14,13,12],
+                                              [12,13,14,15,8,9,10,11,4,5,6,7,0,1,2,3]]),dtype = int)
+        #row = layer, column = I/x/y/z error
+        self.operator_table = np.array(([[0, 1, 5, 3], 
+                                       [0, 2, 6, 4]), dtype = int)"""
+        self.correction_chain=Chain(self.toric.system_size,self.p_error)    # Correction chain added for implementing get_reward2(self)
+        self.a_last=Action(position = np.array([0, 0, 0]), action = 0)      # variable added for remembering latest action taken, also for implementing get_reward2(self)
         self.eq_class = 0 #correction chain equivalence class
-        self.mcmc_data_reader =  MCMCDataReader(file_path = './', size = 1000000) #Double check the size 
+        self.mcmc_data_reader =  MCMCDataReader(file_path = 'write training data directory here', size = 1000000) #Double check the size 
         self.initial_qubit_matrix, self.eq_distr = self.mcmc_data_reader.next()
         ######
 
@@ -207,7 +218,7 @@ class RL():
             # generate syndroms....  Will be replaced with get syndroms from global data variable. Need some sort of counter to track where we are in data
             while terminal_state == 0:
                 if minimum_nbr_of_qubit_errors == 0:
-                    ####Added by Alexei 
+                    ####
                     """self.toric.generate_random_error(self.p_error)"""
                     self.toric.qubit_matrix, self.eq_distr = self.mcmc_data_reader.next()
                     self.syndrom('next_state')
@@ -227,23 +238,16 @@ class RL():
                 action = self.select_action(number_of_actions=self.number_of_actions,
                                             epsilon=epsilon, 
                                             grid_shift=self.grid_shift)
-                a_last=action
-                
-                ######here we need to add the changes to the equivalence class caused by the operator. Added by Alexei 
+                #a_last=action
+                """######here we need to add the changes to the equivalence class caused by the operator. 
                 layer = action.position[0]
                 add_operator = action.action
-                #Check X1 X2 Z1 or Z2 
-                eq_class_change = 0      
-                operator_table = np.array(([[0, 1, 5, 3], [0, 2, 6, 4]))    #X1=1, X2=2, Z1=3, Z2=4, Y1=5,Y2=6
-                eq_class_change = operator_table[layer][add_operator]         
-                self.eq_class = eq_class_rule_table[eq_class_change][self.eq_class]  #Check how the current equivalence class changes with operator
-                #######
-                                              
+                #Check if operator is X1 X2 Z1 Z2 or Y1 Y2
+                self.eq_class = eq_class_rule_table[self.operator_table[layer][add_operator]][self.eq_class]
+                #######"""
+                
+                self.correction_chain.toric.step(action)    
                 self.toric.step(action)
-                
-                
-                #reward = self.get_reward()
-                
                 reward = self.get_reward2()
                 
                 # generate memory entry
@@ -284,22 +288,15 @@ class RL():
         terminal = np.all(self.toric.next_state==0)
         if terminal == True:
             #reward = reward(self.toric,self.correction_chain,self.p_error) #rewrad is the share of coorection_chains equivlaence class
-            reward = self.reward()
-            #self.correction_chain=Chain(self.toric.system_size,self.p_error) #reset chain
+            self.eq_class = self.correction_chain.define_equivalence_class(self.correction_chain.toric.qubit_matrix)
+    	    self.correction_chain=Chain(self.toric.system_size,self.p_error) #reset chain
+    	    return 100*self.eq_distr[self.eq_class] #proportional reward
         else:
-        	reward = 0
+        	return 0
         #else:
             #self.correction_chain.toric.step(a_last) #adds the action to the correction chain since it doesnt resolve the syndrom
          #   reward = 0                          #we only give reward at the end
-
-        return reward
-
-##### Added by Alexei 
-    def reward(self):
-    	return 100*self.eq_distr[self.eq_class] #proportional reward
-    
-#####    
-    
+   
     def select_action(self, number_of_actions=int, epsilon=float, grid_shift=int):
         # set network in evluation mode 
         self.policy_net.eval()
