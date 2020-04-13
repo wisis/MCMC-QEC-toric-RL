@@ -238,23 +238,20 @@ def parallel_tempering_analysis(init_toric, Nc=None, p=0.1, SEQ=5, TOPS=10, tops
         elif convergence_reached and conv_criteria == 'error_based':
             counter+=1
             if counter == nbr_steps_after_convergence: break 
-        
+        elif convergence_reached and conv_criteria == 'majority_based': 
+            bottom_equivalence_classes.append(define_equivalence_class(ladder[0].toric.qubit_matrix))
+            counter+=1
+            eq_class_distr.append(define_equivalence_class(ladder[0].toric.qubit_matrix))
+            #print("Majority class: ", majority_class)
+            if counter == nbr_steps_after_convergence: 
+                break 
         """elif convergence_reached and conv_criteria == 'geweke':  # converged, append eq:s to list
             counter+=1
             eq_class_distr.append(define_equivalence_class(ladder[0].toric.qubit_matrix))
-            if counter == nbr_steps_after_convergence: break """
-        
-        elif convergence_reached and conv_criteria == 'majority_based': 
-			bottom_equivalence_classes.append(define_equivalence_class(ladder[0].toric.qubit_matrix))
-			counter+=1
-			eq_class_distr.append(define_equivalence_class(ladder[0].toric.qubit_matrix))
-			#print("Majority class: ", majority_class)
-			if counter == nbr_steps_after_convergence: 
-				break 
-                           
+            if counter == nbr_steps_after_convergence: break """                   
         # Karls tillägg för att räkna hur medelekvivalensvärden utvecklas
         current_eq = define_equivalence_class(ladder[0].toric.qubit_matrix)
-
+    
         # current class count is previous class count + the current class
         # edge case j = 0 is ok. eq_full[-1] picks last element, which is initiated as zeros
         eq_full[j] = eq_full[j-1]
@@ -292,7 +289,7 @@ def parallel_tempering_analysis(init_toric, Nc=None, p=0.1, SEQ=5, TOPS=10, tops
                     crits_distr['distr_based'][1] = since_burn
 
             if 'majority_based' in conv_criteria and not crits_distr['majority_based'][2]:
-         		# returns the majority class that becomes obvious right when convergence is reached
+                 # returns the majority class that becomes obvious right when convergence is reached
                 tops_accepted = tops0 - tops_majority_based
                 accept, crits_distr['majority_based'][2] = conv_crit_majority_based(eq, since_burn, tops_accepted, SEQ)
                 
