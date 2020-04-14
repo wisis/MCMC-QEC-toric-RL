@@ -73,6 +73,10 @@ def parallel_tempering(init_toric, Nc=None, p=0.1, SEQ=5, TOPS=10, tops_burn=2, 
 
     convergence_reached = False
 
+    chains = []
+    for i in range(16):
+        chains.append(Toric_code(size).qubit_matrix)
+
     # add and copy state for all chains in ladder
     for i in range(Nc):
         p_i = p + ((p_end - p) / (Nc - 1)) * i
@@ -95,6 +99,8 @@ def parallel_tempering(init_toric, Nc=None, p=0.1, SEQ=5, TOPS=10, tops_burn=2, 
             ladder[0].flag = 0
 
         current_eq = define_equivalence_class(ladder[0].toric.qubit_matrix)
+        if chains[current_eq].all() == 0:
+            chains[current_eq] = ladder[0].toric.qubit_matrix
 
         # current class count is previous class count + the current class
         # edge case j = 0 is ok. eq_full[-1] picks last element, which is initiated as zeros
@@ -130,9 +136,11 @@ def parallel_tempering(init_toric, Nc=None, p=0.1, SEQ=5, TOPS=10, tops_burn=2, 
                 # reset if majority classes in Q2 and Q4 are different
                 if not accept:
                     tops_majority_based = tops0
+        if convergence_reached:
+            break
 
     distr = (np.divide(eq[since_burn], since_burn + 1) * 100).astype(np.uint8)
-    return [distr, eq, eq_full, ladder[0], resulting_burn_in]
+    return [distr, chains]
 
 
 def parallel_tempering_analysis(init_toric, Nc=None, p=0.1, SEQ=5, TOPS=10, tops_burn=2, eps = 0.01, n_tol=1e-4, steps=1000, iters=10, conv_criteria=None):
