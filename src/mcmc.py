@@ -86,12 +86,12 @@ def parallel_tempering(init_toric, Nc=None, p=0.1, SEQ=5, TOPS=10, tops_burn=2, 
     p_end = 0.75  # p at top chain as per high-threshold paper
     tops0 = 0
     resulting_burn_in = 0
+    since_burn = 0
     nbr_errors_bottom_chain = np.zeros(steps)
     eq = np.zeros([steps, 16], dtype=np.uint32)  # list of class counts after burn in
 
     # used in error_based/majority_based instead of setting tops0 = TOPS
-    tops_error_based = 0
-    tops_majority_based = 0
+    tops_change = 0
 
     convergence_reached = False
 
@@ -131,22 +131,27 @@ def parallel_tempering(init_toric, Nc=None, p=0.1, SEQ=5, TOPS=10, tops_burn=2, 
 
         if not convergence_reached and tops0 >= TOPS and not since_burn % 10:
             if conv_criteria == 'error_based':
-                tops_accepted = tops0 - tops_error_based
+                tops_accepted = tops0 - tops_change
                 accept, convergence_reached = conv_crit_error_based(nbr_errors_bottom_chain, since_burn, tops_accepted, SEQ, eps)
                 if not accept:
-                    tops_error_based = tops0
+                    tops_change = tops0
 
             if conv_criteria == 'distr_based':
-                convergence_reached = conv_crit_distr_based(eq, since_burn, n_tol)
+                tops_accepted = tops0 - tops_change
+                accept, crits_distr['distr_based'][2] = conv_crit_distr_based(eq, since_burn, n_tol)
+
+                # Reset if difference (norm) between Q2 and Q4 is too different
+                if not accept:
+                    tops_change = tops0
 
             if conv_criteria == 'majority_based':
                 # returns the majority class that becomes obvious right when convergence is reached
-                tops_accepted = tops0 - tops_majority_based
+                tops_accepted = tops0 - tops_change
                 accept, convergence_reached = conv_crit_majority_based(eq, since_burn, SEQ)
 
                 # reset if majority classes in Q2 and Q4 are different
                 if not accept:
-                    tops_majority_based = tops0
+                    tops_change = tops0
 
         if convergence_reached:
             break
@@ -155,7 +160,7 @@ def parallel_tempering(init_toric, Nc=None, p=0.1, SEQ=5, TOPS=10, tops_burn=2, 
     return distr
 
 
-def parallel_tempering_analysis(init_toric, Nc=None, p=0.1, SEQ=5, TOPS=10, tops_burn=2, eps=0.01, n_tol=1e-4, steps=1000, iters=10, conv_criteria=None):
+def parallel_tempering_analysis(init_toric, Nc=None, p=0.1, SEQ=5, TOPS=10, tops_burn=2, eps=0.01, n_tol=1e-4, tvd_tol=0.1, kld_tol=2.0, steps=1000, iters=10, conv_criteria=None):
     size = init_toric.system_size
     Nc = Nc or size
 
@@ -171,23 +176,23 @@ def parallel_tempering_analysis(init_toric, Nc=None, p=0.1, SEQ=5, TOPS=10, tops
     p_end = 0.75  # p at top chain as per high-threshold paper
     tops0 = 0
     resulting_burn_in = 0
+    since_burn = 0
     nbr_errors_bottom_chain = np.zeros(steps)
     eq = np.zeros([steps, 16], dtype=np.uint32)  # list of class counts after burn in
     eq_full = np.zeros([steps, 16], dtype=np.uint32)  # list of class counts from start
     # might only want one of these, as (eq_full[j] - eq[j - resulting_burn_in]) is constant
 
-    # used in error_based/majority_based instead of setting tops0 = TOPS
-    tops_error_based = TOPS
-    tops_majority_based = TOPS
-
     # List of convergence criteria. Add any new ones to list
-    conv_criteria = conv_criteria or ['error_based', 'distr_based', 'majority_based']
+    conv_criteria = conv_criteria or ['error_based', 'distr_based', 'majority_based', 'tvd_based', 'kld_based']
     # Dictionary to hold the converged distribution and the number of steps to converge, according to each criteria
     crits_distr = {}
+    tops_distr = {}
     for crit in conv_criteria:
         # every criteria gets an empty list, a number and a bool.
         # The empty list represents eq_class_distr, the number is the step where convergence is reached, and the bool is whether convergence has been reached
-        crits_distr[crit] = [[], -1, False]
+        crits_distr[crit] = [np.zeros(16), -1, False]
+        # How much tops0 has increased while crit has remained fulfilled
+        tops_distr[crit] = TOPS
 
     # plot initial error configuration
     init_toric.plot_toric_code(init_toric.next_state, 'Chain_init')
@@ -233,19 +238,24 @@ def parallel_tempering_analysis(init_toric, Nc=None, p=0.1, SEQ=5, TOPS=10, tops
 
         if tops0 >= TOPS and not since_burn % 10:
             if 'error_based' in conv_criteria and not crits_distr['error_based'][2]:
-                tops_accepted = tops0 - tops_error_based
+                tops_accepted = tops0 - tops_distr['error_based']
                 accept, crits_distr['error_based'][2] = conv_crit_error_based(nbr_errors_bottom_chain, since_burn, tops_accepted, SEQ, eps)
 
                 # Reset if difference in nbr_errors between Q2 and Q4 is too different
                 if not accept:
-                    tops_error_based = tops0
+                    tops_distr['error_based'] = tops0
 
                 # Converged
                 if crits_distr['error_based'][2]:
                     crits_distr['error_based'][1] = since_burn
 
             if 'distr_based' in conv_criteria and not crits_distr['distr_based'][2]:
-                crits_distr['distr_based'][2] = conv_crit_distr_based(eq, since_burn, n_tol)
+                tops_accepted = tops0 - tops_distr['distr_based']
+                accept, crits_distr['distr_based'][2] = conv_crit_distr_based(eq, since_burn, n_tol)
+
+                # Reset if difference (norm) between Q2 and Q4 is too different
+                if not accept:
+                    tops_distr['distr_based'] = tops0
 
                 # Converged
                 if crits_distr['distr_based'][2]:
@@ -253,16 +263,40 @@ def parallel_tempering_analysis(init_toric, Nc=None, p=0.1, SEQ=5, TOPS=10, tops
 
             if 'majority_based' in conv_criteria and not crits_distr['majority_based'][2]:
                 # returns the majority class that becomes obvious right when convergence is reached
-                tops_accepted = tops0 - tops_majority_based
+                tops_accepted = tops0 - tops_distr['majority_based']
                 accept, crits_distr['majority_based'][2] = conv_crit_majority_based(eq, since_burn, tops_accepted, SEQ)
 
                 # reset if majority classes in Q2 and Q4 are different
                 if not accept:
-                    tops_majority_based = tops0
+                    tops_distr['majority_based'] = tops0
 
                 # Converged
                 if crits_distr['majority_based'][2]:
                     crits_distr['majority_based'][1] = since_burn
+
+            if 'tvd_based' in conv_criteria and not crits_distr['tvd_based'][2]:
+                tops_accepted = tops0 - tops_distr['tvd_based']
+                accept, crits_distr['tvd_based'][2] = conv_crit_distr_based(eq, since_burn, tvd_tol)
+
+                # Reset if difference (norm) between Q2 and Q4 is too different
+                if not accept:
+                    tops_distr['tvd_based'] = tops0
+
+                # Converged
+                if crits_distr['tvd_based'][2]:
+                    crits_distr['tvd_based'][1] = since_burn
+
+            if 'kld_based' in conv_criteria and not crits_distr['kld_based'][2]:
+                tops_accepted = tops0 - tops_distr['kld_based']
+                accept, crits_distr['kld_based'][2] = conv_crit_distr_based(eq, since_burn, kld_tol)
+
+                # Reset if difference (norm) between Q2 and Q4 is too different
+                if not accept:
+                    tops_distr['kld_based'] = tops0
+
+                # Converged
+                if crits_distr['kld_based'][2]:
+                    crits_distr['kld_based'][1] = since_burn
 
     # plot all chains
     for i in range(Nc):
@@ -279,6 +313,7 @@ def parallel_tempering_analysis(init_toric, Nc=None, p=0.1, SEQ=5, TOPS=10, tops
     return [distr, eq, eq_full, ladder[0], resulting_burn_in, crits_distr]
 
 
+@jit(nopython=True)
 def conv_crit_error_based(nbr_errors_bottom_chain, since_burn, tops_accepted, SEQ, eps):  # Konvergenskriterium 1 i papper
     # last nonzero element of nbr_errors_bottom_chain is since_burn. Length of nonzero part is since_burn + 1
     l = since_burn + 1
@@ -295,7 +330,8 @@ def conv_crit_error_based(nbr_errors_bottom_chain, since_burn, tops_accepted, SE
         return False, False
 
 
-def conv_crit_distr_based(eq, since_burn, norm_tol=0.05):
+@jit(nopython=True)
+def conv_crit_distr_based(eq, since_burn, tops_accepted, SEQ, norm_tol):
     # last nonzero element of eq is since_burn. Length of nonzero part is since_burn + 1
     l = since_burn + 1
     # Classes found during Q2 is (classes found in first half) - (classes found in first quarter)
@@ -304,9 +340,14 @@ def conv_crit_distr_based(eq, since_burn, norm_tol=0.05):
 
     # Q2_count and Q4_count are unsigned ints. Have to convert to not overflow (ja, det hände)
     Q_diff = (Q4_count - Q2_count).astype(np.int32)
-    return np.linalg.norm(np.divide(Q_diff, l, dtype=np.float)) < norm_tol
+
+    if np.linalg.norm(np.divide(Q_diff, l, dtype=np.float)) < norm_tol:
+        return True, tops_accepted >= SEQ
+    else:
+        return False, False
 
 
+@jit(nopython=True)
 def conv_crit_majority_based(eq, since_burn, tops_accepted, SEQ):
     # last nonzero element of eq is since_burn. Length of nonzero part is since_burn + 1
     l = since_burn + 1
@@ -318,6 +359,45 @@ def conv_crit_majority_based(eq, since_burn, tops_accepted, SEQ):
     count_max_Q4 = np.argmax(Q4_count)
 
     if count_max_Q2 == count_max_Q4:
+        return True, tops_accepted >= SEQ
+    else:
+        return False, False
+
+
+@jit(nopython=True)
+def conv_tvd_based(eq, since_burn, tops_accepted, SEQ, tol):
+    # Total variational distance based convergence
+
+    # last nonzero element of eq is since_burn. Length of nonzero part is since_burn + 1
+    l = since_burn + 1
+    # Classes found during Q2 is (classes found in first half) - (classes found in first quarter)
+    Q2_distr = np.divide(eq[l // 2] - eq[l // 4], l, dtype=np.float)
+    Q4_distr = np.divide(eq[l - 1] - eq[3 * l // 4], l, dtype=np.float)
+
+    tvd = np.amax(np.absolute(Q2_distr - Q4_distr))
+
+    if np.linalg.norm(np.divide(tvd, l, dtype=np.float)) < tol:
+        return True, tops_accepted >= SEQ
+    else:
+        return False, False
+
+
+@jit(nopython=True)
+def conv_kl_based(eq, since_burn, tops_accepted, SEQ, tol):
+    # Kullback-Leibler based convergence
+
+    # last nonzero element of eq is since_burn. Length of nonzero part is since_burn + 1
+    l = since_burn + 1
+    # Classes found during Q2 is (classes found in first half) - (classes found in first quarter)
+    Q2_distr = np.divide(eq[l // 2] - eq[l // 4], l, dtype=np.float)
+    Q4_distr = np.divide(eq[l - 1] - eq[3 * l // 4], l, dtype=np.float)
+
+    # Avoid division by zero and log of zero
+    nonzero = np.logical_and(Q2_distr != 0, Q4_distr != 0)
+    # calculate the symmetric kullback leibler distance between Q2 and Q4
+    kld = np.sum((Q2_distr - Q4_distr) * np.log2(np.divide(Q2_distr, Q4_distr)), where=nonzero)
+
+    if np.linalg.norm(np.divide(kld, l, dtype=np.float)) < tol:
         return True, tops_accepted >= SEQ
     else:
         return False, False
