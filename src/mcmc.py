@@ -160,7 +160,7 @@ def parallel_tempering(init_toric, Nc=None, p=0.1, SEQ=5, TOPS=10, tops_burn=2, 
     return distr
 
 
-def parallel_tempering_analysis(init_toric, Nc=None, p=0.1, SEQ=5, TOPS=10, tops_burn=2, eps=0.01, n_tol=1e-4, tvd_tol=0.1, kld_tol=2.0, steps=1000, iters=10, conv_criteria=None):
+def parallel_tempering_analysis(init_toric, Nc=None, p=0.1, SEQ=5, TOPS=10, tops_burn=2, eps=0.01, n_tol=1e-4, tvd_tol=0.05, kld_tol=0.5, steps=1000, iters=10, conv_criteria=None):
     size = init_toric.system_size
     Nc = Nc or size
 
@@ -276,7 +276,7 @@ def parallel_tempering_analysis(init_toric, Nc=None, p=0.1, SEQ=5, TOPS=10, tops
 
             if 'tvd_based' in conv_criteria and not crits_distr['tvd_based'][2]:
                 tops_accepted = tops0 - tops_distr['tvd_based']
-                accept, crits_distr['tvd_based'][2] = conv_crit_distr_based(eq, since_burn, tops_accepted, SEQ, tvd_tol)
+                accept, crits_distr['tvd_based'][2] = conv_crit_tvd_based(eq, since_burn, tops_accepted, SEQ, tvd_tol)
 
                 # Reset if difference (norm) between Q2 and Q4 is too different
                 if not accept:
@@ -372,7 +372,7 @@ def conv_crit_tvd_based(eq, since_burn, tops_accepted, SEQ, tol):
 
     tvd = np.amax(np.absolute(Q2_distr - Q4_distr))
 
-    if np.linalg.norm(np.divide(tvd, l, dtype=np.float)) < tol:
+    if tvd < tol:
         return True, tops_accepted >= SEQ
     else:
         return False, False
@@ -396,7 +396,8 @@ def conv_crit_kld_based(eq, since_burn, tops_accepted, SEQ, tol):
     else:
         kld = 100
 
-    if np.linalg.norm(np.divide(kld, l, dtype=np.float)) < tol:
+    if kld < tol:
+        print(kld)
         return True, tops_accepted >= SEQ
     else:
         return False, False
