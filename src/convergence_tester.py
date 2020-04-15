@@ -14,99 +14,97 @@ from .toric_model import Toric_code
 from .mcmc import *
 
 
-
-
-
-'''
-def test_tolerence_all_seeds(eps_interval=[0,0.1],norm_tol=[0.09,0.2],convergence_criteria='distr_based'):
-    y1=[]
-    y2=[]
-    x=[]
-    for i in range(1):
-        for j in range(6):
-            time_array=time_all_seeds(convergence_criteria,eps_interval[0],norm_tol[0]+j*(norm_tol[1]-norm_tol[0])/5)
-            y1+=[time_array[1]]
-            y2+=[time_array[2]]
-            x+=[norm_tol[0]+j*(norm_tol[1]-norm_tol[0])/5]
-    plt.plot(x, y1, label = "line 1")
-    plt.plot(x, y2, label = "line 2")
+def compare_graphic(convergence_criteria='error_based',tolerences=[100,1,0.2]):
+    x = tolerences
+    y = np.zeros(len(tolerences))
+    for i in range(len(tolerences)):
+        print(x[i])
+        [_,_,_,tmp]=test_numeric_distribution_convergence(convergence_criteria,x[i],x[i],False)
+        y[i]=tmp
+    plt.title(convergence_criteria) 
+    plt.xlabel("tolerence") 
+    plt.ylabel("max diff") 
+    plt.plot(x,y) 
     plt.show()
-'''
-'''            
-def sucess_and_correspondence_tester(seed_number,iterations=1000):
-    
-    init_toric =seed(seed_number)
-    size = init_toric.system_size
-    Nc = 9
-    p_error = 0.17
-    success = 0
-    correspondence = 0
-    
-    for i in range(iterations):
-          
-          toric_copy = copy.deepcopy(init_toric)
-          apply_random_logical(toric_copy.qubit_matrix)
-          class_before = define_equivalence_class(init_toric.qubit_matrix)
-          [distr1, eq_class_count_BC,eq_class_count_AC,chain0] = parallel_tempering(init_toric, 9, p=p_error, steps=1000000, iters=10, conv_criteria='error_based')
-          [distr2, eq_class_count_BC,eq_class_count_AC,chain0] = parallel_tempering(toric_copy, 9, p=p_error, steps=1000000, iters=10, conv_criteria='error_based')
-          class_after = np.argmax(distr1)
-          copy_class_after = np.argmax(distr2)
-          if class_after == class_before:
-              success+=1
-          if copy_class_after == class_after:
-              correspondence+=1
-          
-          if i >= 1:
-              print('#' + str(i) +" current success rate: ", success/(i+1))
-              print('#' + str(i) + " current correspondence: ", correspondence/(i+1))   
-  ''' 
+
+
 def test_numeric_distribution_convergence(convergence_criteria='distr_based',eps=0.1,n_tol=0.05,bool=False):
-    arr=test_distribution_convergence(convergence_criteria,eps,n_tol,True)
+    arr=test_distribution_convergence(convergence_criteria,eps,n_tol,False)
+    #arr=[[0.5,0.3,0.05,0.15,0,1.15,0,0,0,0,0,0,0,0,0,0],[0.5,0.3,0.2,0,0,0,0,0,0,0,0,0,0,0,0,0],[0.5,0.3,0.2,0,0,0,0,0,0,0,0,0,0,0,0,0],[0.5,0.3,0.2,0,0,0,0,0,0,0,0,0,0,0,0,0],[0.5,0.3,0.2,0,0,0,0,0,0,0,0,0,0,0,0,0],[0.5,0.3,0.2,0,0,0,0,0,0,0,0,0,0,0,0,0],[0.5,0.3,0.2,0,0,0,0,0,0,0,0,0,0,0,0,0],[0.5,0.3,0.2,0,0,0,0,0,0,0,0,0,0,0,0,0],[0.5,0.3,0.2,0,0,0,0,0,0,0,0,0,0,0,0,0],[0.5,0.3,0.2,0,0,0,0,0,0,0,0,0,0,0,0,0],[0.5,0.3,0.2,0,0,0,0,0,0,0,0,0,0,0,0,0],[0.5,0.3,0.2,0,0,0,0,0,0,0,0,0,0,0,0,0],[0.5,0.3,0.2,0,0,0,0,0,0,0,0,0,0,0,0,0],[0.5,0.3,0.2,0,0,0,0,0,0,0,0,0,0,0,0,0],[0.5,0.3,0.2,0,0,0,0,0,0,0,0,0,0,0,0,0],[0.5,0.3,0.2,0,0,0,0,0,0,0,0,0,0,0,0,0]]
+    print(arr[0][0])
+    print(arr[1])
+    print(arr[2])
     nmbr_1st=0
     nmbr_2nd=0
     nmbr_3rd=0
+    max_1=0
     temp=np.zeros(16)
     temp2=0
+
+    count=0
+    max_temp=np.zeros(136)
     for i in range(16):
         temp2=arr[i]
-        idx=temp2.index(max(temp2))
+        #idx=temp2.index(max(temp2))
+        [idx]=np.where(temp2==np.ndarray.max(temp2))
         temp[idx]=temp[idx]+1
+        for j in range(i,16):
+            a=np.zeros(16)
+            
+            for k in range(16):
+                kon=arr[j][k]-arr[i][k]
+                a[k]=np.absolute(arr[j][k]-arr[i][k])
+                if j==12 and i==10:     #DEBUG
+                    print("Element 1: " + str(arr[j][k]))
+                    print("Element 2: " + str(arr[i][k]))
+                    kon=arr[j][k]-arr[i][k]
+                    print("Element 1 - Element 2: "+ str(kon))
+                    print("Absolute of difference: " + str(np.absolute(kon)))
+                    print("Absolute of difference,a[k]: " + str(a[k]))
+                
+            max_temp[count]=max(a)
+            count+=1  
+    max_1=max(max_temp)
     nmbr_1st=max(temp)
+
     temp=np.zeros(16)
     for i in range(16):
         temp2=arr[i]
-        idx=temp2.index(max(temp2))
+        [idx]=np.where(temp2==np.ndarray.max(temp2))
         temp2[idx]=0
-        idx=temp2.index(max(temp2))
+        [idx]=np.where(temp2==np.ndarray.max(temp2))
         temp[idx]=temp[idx]+1
     nmbr_2nd=max(temp)
 
     temp=np.zeros(16)
     for i in range(16):
         temp2=arr[i]
-        idx=temp2.index(max(temp2))
+        [idx]=np.where(temp2==np.ndarray.max(temp2))
         temp2[idx]=0
-        idx=temp2.index(max(temp2))
-        temp2[idx]=0
-        idx=temp2.index(max(temp2))
+        [idx]=np.where(temp2==np.ndarray.max(temp2))
         temp[idx]=temp[idx]+1
+        
     nmbr_3rd=max(temp)
-    f=open("data_" + convergence_criteria + '_eps' + str(eps)+ '_ntol' + str(n_tol))
-    f.write("Number of equivalent 1st: " + str(nmbr_1st) + "\n Number of equivalent 2nd: "+ str(nmbr_2nd) + "\n Number of equivalent 3rd: "+ str(nmbr_3rd))
-    
+
+
+    f=open("data_" + convergence_criteria + '_eps' + str(eps)+ '_ntol' + str(n_tol) + ".txt","w")
+    f.write("Convergence criteria: " + convergence_criteria + '\n eps:' + str(eps)+ '\n ntol: ' + str(n_tol) + "\n \n")
+    f.write("Number of equivalent 1st: " + str(nmbr_1st) + "\nNumber of equivalent 2nd: "+ str(nmbr_2nd) + "\nNumber of equivalent 3rd: "+ str(nmbr_3rd))
+    f.write("\n\nMax difference: " + str(max_1))
+    f.close()
+    return [nmbr_1st,nmbr_2nd,nmbr_3rd,max_1]
     
 
-def test_distribution_convergence(convergence_criteria='distr_based',eps=0.1,n_tol=0.05,bool=False):
-    torr=seed(1)
-    print('Equivalence class of seed(1): ' + str(define_equivalence_class(torr.qubit_matrix)))
+def test_distribution_convergence(convergence_criteria='distr_based',eps=0.1,n_tol=0.05,boll=False):
     array_of_distributions=[]
     for i in range(16):
         t = seed(i+1)
         print(i)
-        [_,_,temp,_] = parallel_tempering(t, 9, 0.1, 2, 10, eps,n_tol, 100000, 10, convergence_criteria)
+        [temp,_,_,_,_] = parallel_tempering(t, 9, 0.1, 2, 10, 2, eps,n_tol, 1000000, 10, convergence_criteria)
+        temp=temp.astype(np.int32)
         array_of_distributions += [temp]
     x = [ 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16] 
-    if bool:
+    if boll:
         for i in range(16):
             height = array_of_distributions[i]
             height=np.divide(height,np.sum(height))
@@ -143,6 +141,7 @@ def time_all_seeds(convergence_criteria='distr_based',eps=0.1,n_tol=0.5):
     plt.show() 
     return time_array
 
+#Initial seed. Is used in seed(number) to generate seeds from all 16 eq-classes
 def in_seed(seed_number):
     toric=Toric_code(5)
     n=seed_number
@@ -243,14 +242,16 @@ def seed(number):
         [toric.qubit_matrix,_]=apply_logical_horizontal(toric.qubit_matrix,1,3)
         [toric.qubit_matrix,_]=apply_logical_horizontal(toric.qubit_matrix,1,1)
         return toric
-        
+'''       
 convergence_criteria=str(sys.argv[1])
 if convergence_criteria=='distr_based':
     eps=10
     n_tol=float(sys.argv[2])
-else:
+elif convergence_criteria=='error_based':
     eps=float(sys.argv[2])
     n_tol=10
 
-print("eps: "+ str(eps) +", n_tol: " + str(n_tol))
-print("Number of seed with same largest bin: " + str(test_numeric_distribution_convergence(convergence_criteria,eps,n_tol,bool=True)))   
+print("Convergence critera: " + convergence_criteria + ", eps: "+ str(eps) +", n_tol: " + str(n_tol))
+[tmp,_,_,_]=test_numeric_distribution_convergence(convergence_criteria,eps,n_tol,bool=True)
+print("Number of seed with same largest bin: " + str(tmp))   
+'''
