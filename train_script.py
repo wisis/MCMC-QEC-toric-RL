@@ -12,6 +12,8 @@ from ResNet import ResNet18, ResNet34, ResNet50, ResNet101, ResNet152
 ##########################################################################
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+if torch.cuda.is_available(): print('CUDA is available')
+else: print("no CUDA available")
 
 # valid network names: 
 #   NN_11

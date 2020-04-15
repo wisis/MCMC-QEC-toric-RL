@@ -1,7 +1,9 @@
 # standard libraries
+import os
+import sys
 import numpy as np
 import random
-import time
+import time #for timing cluster
 from collections import namedtuple, Counter
 import operator
 import os
@@ -22,8 +24,9 @@ from ResNet import ResNet18, ResNet34, ResNet50, ResNet101, ResNet152
 from .util import incremental_mean, convert_from_np_to_tensor, Transition
 # import mcmc tools
 from src.mcmc import *
-
-    
+# Give .xz file path as argument to train_sript.py 
+DATA_FILE_PATH = str(sys.argv[1])
+   
 class RL():
     def __init__(self, Network, Network_name, system_size=int, p_error=0.1, replay_memory_capacity=int, learning_rate=0.00025,
                 discount_factor=0.95, number_of_actions=3, max_nbr_actions_per_episode=50, device='cpu', replay_memory='uniform'):
@@ -79,8 +82,9 @@ class RL():
         # Correction chain added for implementing get_mcmc_reward(self)
         self.correction_chain=Chain(self.toric.system_size,self.p_error)                                                 
         # Create data-reader-object to handle training data
-        self.mcmc_data_reader =  MCMCDataReader(file_path = 'data/data_5.xz', size = self.system_size) ##HANDLE DIRECTORY WITH PARAMS?
+        self.mcmc_data_reader =  MCMCDataReader(file_path = DATA_FILE_PATH, size = self.system_size) ##HANDLE DIRECTORY WITH PARAMS?
         self.eq_distr = None
+        self.t_start = None
         ######
 
     def save_network(self, PATH):
@@ -210,8 +214,8 @@ class RL():
         num_of_steps = np.round(training_steps/num_of_epsilon_steps)
         epsilon_decay = np.round((epsilon_start-epsilon_end)/num_of_epsilon_steps, 5)
         epsilon_update = num_of_steps * reach_final_epsilon
-        # main loop over training steps 
-        while iteration < training_steps:
+        # main loop over training steps
+        while iteration < training_steps and self.mcmc_data_reader.has_next() and time.time()-self.t_start < int(sys.argv[2]):
             num_of_steps_per_episode = 0
             # initialize syndrom
             self.toric = Toric_code(self.system_size)
@@ -442,9 +446,9 @@ class RL():
     def train_for_n_epochs(self, training_steps=int, epochs=int, num_of_predictions=100, num_of_steps_prediction=50, target_update=100, 
         optimizer=str, save=True, directory_path='network', prediction_list_p_error=[0.1],
         batch_size=32, replay_start_size=32, minimum_nbr_of_qubit_errors=0):
-        
         data_all = []
         data_all = np.zeros((1, 19))
+        self.t_start = time.time()
 
         for i in range(epochs):
             self.train(training_steps=training_steps,
