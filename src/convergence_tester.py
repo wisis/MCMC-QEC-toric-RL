@@ -8,13 +8,12 @@ import sys
 from .toric_model import *
 from .util import Action
 from .mcmc import *
-from .reward import *
 
 from .toric_model import Toric_code
 from .mcmc import *
 
 
-def compare_graphic(convergence_criteria='error_based',tolerences=[100,1,0.2]):
+def compare_graphic(convergence_criteria='error_based',tolerences=[1.6,0.8,0.4,0.2,0.1,0.05]):
     x = tolerences
     y = np.zeros(len(tolerences))
     for i in range(len(tolerences)):
@@ -50,7 +49,7 @@ def test_numeric_distribution_convergence(convergence_criteria='distr_based',eps
         temp[idx]=temp[idx]+1
         for j in range(i,16):
             a=np.zeros(16)
-            
+            '''
             for k in range(16):
                 kon=arr[j][k]-arr[i][k]
                 a[k]=np.absolute(arr[j][k]-arr[i][k])
@@ -61,7 +60,7 @@ def test_numeric_distribution_convergence(convergence_criteria='distr_based',eps
                     print("Element 1 - Element 2: "+ str(kon))
                     print("Absolute of difference: " + str(np.absolute(kon)))
                     print("Absolute of difference,a[k]: " + str(a[k]))
-                
+              '''  
             max_temp[count]=max(a)
             count+=1  
     max_1=max(max_temp)
@@ -100,7 +99,7 @@ def test_distribution_convergence(convergence_criteria='distr_based',eps=0.1,n_t
     for i in range(16):
         t = seed(i+1)
         print(i)
-        [temp,_,_,_,_] = parallel_tempering(t, 9, 0.1, 2, 10, 2, eps,n_tol, 1000000, 10, convergence_criteria)
+        temp= parallel_tempering(t, 9, 0.1, 2, 10, 2, eps,n_tol, 1000000, 10, convergence_criteria)
         temp=temp.astype(np.int32)
         array_of_distributions += [temp]
     x = [ 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16] 
