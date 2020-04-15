@@ -10,7 +10,7 @@ def main2():
     size = 5
     init_toric = Toric_code(size)
     Nc = size 
-    p_error = 0.185
+    p_error = 0.17
 
     init_toric.generate_random_error(p_error)
     #init_toric.qubit_matrix = apply_stabilizers_uniform(init_toric.qubit_matrix)
@@ -31,8 +31,7 @@ def convergence_tester():
     size = 5
     init_toric = Toric_code(size)
     Nc = 9
-    p_error = 0.185
-    criteria = 'geweke'
+    p_error = 0.17
     success = 0
     correspondence = 0
     
@@ -53,8 +52,7 @@ def convergence_tester():
           
           if i >= 1:
               print('#' + str(i) + " current success rate: ", success/(i+1))
-              print('#' + str(i) + " current correspondence: ", correspondence/(i+1), " time: ", time.time()- t1)     
-              print('#' + str(i) +" log(1-p): ", np.log(1-success/(i+1)))
+              print('#' + str(i) + " current correspondence: ", correspondence/(i+1), " time: ", time.time()- t1)
 
 
 def main3():
