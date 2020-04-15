@@ -140,7 +140,11 @@ def parallel_tempering(init_toric, Nc=None, p=0.1, SEQ=5, TOPS=10, tops_burn=2, 
             break
 
     distr = (np.divide(eq[since_burn], since_burn + 1) * 100).astype(np.uint8)
-    return [distr, chains]
+    if define_equivalence_class(init_toric.qubit_matrix) == define_equivalence_class(chains[np.argmax(distr)]):
+        success = 1
+    else:
+        success = 0
+    return success
 
 
 def parallel_tempering_analysis(init_toric, Nc=None, p=0.1, SEQ=5, TOPS=10, tops_burn=2, eps = 0.01, n_tol=1e-4, steps=1000, iters=10, conv_criteria=None):
