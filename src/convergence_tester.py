@@ -12,12 +12,11 @@ from .mcmc import *
 from .toric_model import Toric_code
 from .mcmc import *
 
-
-def compare_graphic(convergence_criteria='error_based',tolerences=[1.6,0.8,0.4,0.2,0.1,0.05]):
+# Runs test_numeric_distribution_convergence for an array of different tolerences
+def compare_graphic(convergence_criteria='error_based',tolerences=[1.6,0.8,0.4,0.2,0.1,0.05],SEQs=[5,4,3]):
     x = tolerences
     y = np.zeros(len(tolerences))
     for i in range(len(tolerences)):
-        print(x[i])
         [_,_,_,tmp]=test_numeric_distribution_convergence(convergence_criteria,x[i],x[i],False)
         y[i]=tmp
     plt.title(convergence_criteria) 
@@ -26,84 +25,127 @@ def compare_graphic(convergence_criteria='error_based',tolerences=[1.6,0.8,0.4,0
     plt.plot(x,y) 
     plt.show()
 
-
-def test_numeric_distribution_convergence(convergence_criteria='distr_based',eps=0.1,n_tol=0.05,bool=False):
-    arr=test_distribution_convergence(convergence_criteria,eps,n_tol,False)
+# Returns an array [nmbr_1st,nmbr_2nd,nmbr_3rd,max_1], and saves the same data in .txt files
+# For a given convergence criteria and tolerence. nmbr_1st is the number of different seeds( maximum 16) which converges to
+# a distribution that has the same most likely equivalence class (1st likely). Same way for nmbr_2nd and nmbr_3rd.
+# max_1 is the maximum total variational distance between the different equivalence classes.
+def test_numeric_distribution_convergence(convergence_criteria='distr_based',SEQ=2,eps=0.1,n_tol=0.05,bool=False):
+    arr=test_distribution_convergence(convergence_criteria,SEQ=SEQ,eps,n_tol,False)
     #arr=[[0.5,0.3,0.05,0.15,0,1.15,0,0,0,0,0,0,0,0,0,0],[0.5,0.3,0.2,0,0,0,0,0,0,0,0,0,0,0,0,0],[0.5,0.3,0.2,0,0,0,0,0,0,0,0,0,0,0,0,0],[0.5,0.3,0.2,0,0,0,0,0,0,0,0,0,0,0,0,0],[0.5,0.3,0.2,0,0,0,0,0,0,0,0,0,0,0,0,0],[0.5,0.3,0.2,0,0,0,0,0,0,0,0,0,0,0,0,0],[0.5,0.3,0.2,0,0,0,0,0,0,0,0,0,0,0,0,0],[0.5,0.3,0.2,0,0,0,0,0,0,0,0,0,0,0,0,0],[0.5,0.3,0.2,0,0,0,0,0,0,0,0,0,0,0,0,0],[0.5,0.3,0.2,0,0,0,0,0,0,0,0,0,0,0,0,0],[0.5,0.3,0.2,0,0,0,0,0,0,0,0,0,0,0,0,0],[0.5,0.3,0.2,0,0,0,0,0,0,0,0,0,0,0,0,0],[0.5,0.3,0.2,0,0,0,0,0,0,0,0,0,0,0,0,0],[0.5,0.3,0.2,0,0,0,0,0,0,0,0,0,0,0,0,0],[0.5,0.3,0.2,0,0,0,0,0,0,0,0,0,0,0,0,0],[0.5,0.3,0.2,0,0,0,0,0,0,0,0,0,0,0,0,0]]
-    print(arr[0][0])
-    print(arr[1])
-    print(arr[2])
     nmbr_1st=0
     nmbr_2nd=0
     nmbr_3rd=0
     max_1=0
+    # temp can be viewed as 16 different counters
     temp=np.zeros(16)
     temp2=0
-
     count=0
+
+    # The amount of different pairs of distributions to be compared is sum 1-->16 =136
     max_temp=np.zeros(136)
     for i in range(16):
         temp2=arr[i]
-        #idx=temp2.index(max(temp2))
+        # idx is index of the maximum element of the i:th distribution
         [idx]=np.where(temp2==np.ndarray.max(temp2))
+        # increase counter number idx by one
         temp[idx]=temp[idx]+1
+
+        # Check total variatonal distance for all different seed combinations.
         for j in range(i,16):
             a=np.zeros(16)
-            '''
             for k in range(16):
-                kon=arr[j][k]-arr[i][k]
+                #
                 a[k]=np.absolute(arr[j][k]-arr[i][k])
-                if j==12 and i==10:     #DEBUG
-                    print("Element 1: " + str(arr[j][k]))
-                    print("Element 2: " + str(arr[i][k]))
-                    kon=arr[j][k]-arr[i][k]
-                    print("Element 1 - Element 2: "+ str(kon))
-                    print("Absolute of difference: " + str(np.absolute(kon)))
-                    print("Absolute of difference,a[k]: " + str(a[k]))
-              '''  
+                #DEBUG DEBUG DEBUG DEBUG DEBUG DEBUG DEBUG DEBUG DEBUG 
+                #if j==12 and i==10:     
+                    #print("Element 1: " + str(arr[j][k]))
+                    #print("Element 2: " + str(arr[i][k]))
+                    #kon=arr[j][k]-arr[i][k]
+                    #print("Element 1 - Element 2: "+ str(kon))
+                    #print("Absolute of difference: " + str(np.absolute(kon)))
+                    #print("Absolute of difference,a[k]: " + str(a[k]))  
+            
+            # max_temp[count] is the total variational distance of the count:th combination.
+            # Count goes from 0 to 135        
             max_temp[count]=max(a)
-            count+=1  
+            count+=1 
+    # max_1 is the maximum tvd of all 136 combinations.
     max_1=max(max_temp)
+    # nmbr_1st is the number of different seeds( maximum 16) which converges to
+    # a distribution that has the same most likely equivalence class (1st most likely)
     nmbr_1st=max(temp)
 
+    # Reset temp to only zeros
     temp=np.zeros(16)
     for i in range(16):
         temp2=arr[i]
+        # idx is index of the maximum element of the i:th distribution
         [idx]=np.where(temp2==np.ndarray.max(temp2))
+        # set maximum to 0
         temp2[idx]=0
+        # idx is index of the 2nd largest element of the i:th distribution
         [idx]=np.where(temp2==np.ndarray.max(temp2))
+        # increase counter number idx by one
         temp[idx]=temp[idx]+1
+    # nmbr_2nd is the number of different seeds( maximum 16) which converges to
+    # a distribution that has the same second most likely equivalence class (2nd most likely)
     nmbr_2nd=max(temp)
 
+    # Reset temp to only zeros
     temp=np.zeros(16)
     for i in range(16):
         temp2=arr[i]
+        # idx is index of the 2nd largest element of the i:th distribution
         [idx]=np.where(temp2==np.ndarray.max(temp2))
+        # set 2nd largest element to 0
         temp2[idx]=0
+        # idx is index of the 3rd largest element of the i:th distribution
         [idx]=np.where(temp2==np.ndarray.max(temp2))
+        # increase counter number idx by one
         temp[idx]=temp[idx]+1
-        
+
+    # nmbr_3rd is the number of different seeds( maximum 16) which converges to
+    # a distribution that has the same third most likely equivalence class (3rd most likely)
     nmbr_3rd=max(temp)
 
+    
+    if convergence_criteria=='error_based':
+        # Create new file eps value in the file name
+        f=open("data_" + convergence_criteria + '_eps_' + str(eps) + '_SEQ_' + str(SEQ) + ".txt","w")
+        # Write the used convergence criteria
+        f.write("Convergence criteria: " + convergence_criteria)
+        # Write the used tolerence
+        f.write('\n eps:' + str(eps) + '\n SEQ_' + str(SEQ) + "\n \n")
+    elif convergence_criteria=='distr_based':
+        f=open("data_" + convergence_criteria + '_ntol_' + str(n_tol) + '_SEQ_' + str(SEQ) + ".txt","w")
+        f.write("Convergence criteria: " + convergence_criteria)
+        f.write('\n ntol: ' + str(n_tol) + '\n SEQ_' + str(SEQ) + "\n \n")
 
-    f=open("data_" + convergence_criteria + '_eps' + str(eps)+ '_ntol' + str(n_tol) + ".txt","w")
-    f.write("Convergence criteria: " + convergence_criteria + '\n eps:' + str(eps)+ '\n ntol: ' + str(n_tol) + "\n \n")
+    #Write the different critera parameters in the file adn close it
     f.write("Number of equivalent 1st: " + str(nmbr_1st) + "\nNumber of equivalent 2nd: "+ str(nmbr_2nd) + "\nNumber of equivalent 3rd: "+ str(nmbr_3rd))
     f.write("\n\nMax difference: " + str(max_1))
     f.close()
+    #Also return the different critera parameters
     return [nmbr_1st,nmbr_2nd,nmbr_3rd,max_1]
     
-
-def test_distribution_convergence(convergence_criteria='distr_based',eps=0.1,n_tol=0.05,boll=False):
+# Returns list with 16 rows. 
+# Each row contains the equivalence class distribution. 
+# Each row uses a seed from a different equivalence class.
+def test_distribution_convergence(convergence_criteria='distr_based',SEQ=2,eps=0.1,n_tol=0.05,boll=False):
     array_of_distributions=[]
+    #Does paralell tempering for each of the 16 equivalence classes
     for i in range(16):
+        # Choose seed
         t = seed(i+1)
-        print(i)
-        temp= parallel_tempering(t, 9, 0.1, 2, 10, 2, eps,n_tol, 1000000, 10, convergence_criteria)
+        temp= parallel_tempering(t, Nc=9, p=0.1, SEQ=SEQ, TOPS=10, tops_burn=2, eps=eps,n_tol=n_tol, steps=1000000, iters=10, conv_criteria=convergence_criteria)
+        #convert to int32 because parallel_tempering returns only unsigned ints from 0 to 256
         temp=temp.astype(np.int32)
+        #add the distribution from the current seed to the list to be returned
         array_of_distributions += [temp]
-    x = [ 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16] 
+    
+    #boolean parameter boll, if boll==True, then prints the distributions of the 16 equivalence classes as 16 subplots.
     if boll:
+        x = [ 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16] 
         for i in range(16):
             height = array_of_distributions[i]
             height=np.divide(height,np.sum(height))
@@ -116,6 +158,7 @@ def test_distribution_convergence(convergence_criteria='distr_based',eps=0.1,n_t
             plt.ylabel('y - axis') 
             plt.title('') 
         plt.show() 
+
     return array_of_distributions
     
 def time_all_seeds(convergence_criteria='distr_based',eps=0.1,n_tol=0.5):
