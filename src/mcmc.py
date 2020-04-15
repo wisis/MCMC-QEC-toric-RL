@@ -138,7 +138,7 @@ def parallel_tempering(init_toric, Nc=None, p=0.1, SEQ=5, TOPS=10, tops_burn=2, 
 
             if conv_criteria == 'distr_based':
                 tops_accepted = tops0 - tops_change
-                accept, crits_distr['distr_based'][2] = conv_crit_distr_based(eq, since_burn, n_tol)
+                accept, convergence_criteria = conv_crit_distr_based(eq, since_burn, tops_accepted, SEQ, n_tol)
 
                 # Reset if difference (norm) between Q2 and Q4 is too different
                 if not accept:
@@ -251,7 +251,7 @@ def parallel_tempering_analysis(init_toric, Nc=None, p=0.1, SEQ=5, TOPS=10, tops
 
             if 'distr_based' in conv_criteria and not crits_distr['distr_based'][2]:
                 tops_accepted = tops0 - tops_distr['distr_based']
-                accept, crits_distr['distr_based'][2] = conv_crit_distr_based(eq, since_burn, n_tol)
+                accept, crits_distr['distr_based'][2] = conv_crit_distr_based(eq, since_burn, tops_accepted, SEQ, n_tol)
 
                 # Reset if difference (norm) between Q2 and Q4 is too different
                 if not accept:
@@ -276,7 +276,7 @@ def parallel_tempering_analysis(init_toric, Nc=None, p=0.1, SEQ=5, TOPS=10, tops
 
             if 'tvd_based' in conv_criteria and not crits_distr['tvd_based'][2]:
                 tops_accepted = tops0 - tops_distr['tvd_based']
-                accept, crits_distr['tvd_based'][2] = conv_crit_distr_based(eq, since_burn, tvd_tol)
+                accept, crits_distr['tvd_based'][2] = conv_crit_distr_based(eq, since_burn, tops_accepted, SEQ, tvd_tol)
 
                 # Reset if difference (norm) between Q2 and Q4 is too different
                 if not accept:
@@ -288,7 +288,7 @@ def parallel_tempering_analysis(init_toric, Nc=None, p=0.1, SEQ=5, TOPS=10, tops
 
             if 'kld_based' in conv_criteria and not crits_distr['kld_based'][2]:
                 tops_accepted = tops0 - tops_distr['kld_based']
-                accept, crits_distr['kld_based'][2] = conv_crit_distr_based(eq, since_burn, kld_tol)
+                accept, crits_distr['kld_based'][2] = conv_crit_kld_based(eq, since_burn, tops_accepted, SEQ, kld_tol)
 
                 # Reset if difference (norm) between Q2 and Q4 is too different
                 if not accept:
@@ -313,7 +313,6 @@ def parallel_tempering_analysis(init_toric, Nc=None, p=0.1, SEQ=5, TOPS=10, tops
     return [distr, eq, eq_full, ladder[0], resulting_burn_in, crits_distr]
 
 
-@jit(nopython=True)
 def conv_crit_error_based(nbr_errors_bottom_chain, since_burn, tops_accepted, SEQ, eps):  # Konvergenskriterium 1 i papper
     # last nonzero element of nbr_errors_bottom_chain is since_burn. Length of nonzero part is since_burn + 1
     l = since_burn + 1
@@ -330,7 +329,6 @@ def conv_crit_error_based(nbr_errors_bottom_chain, since_burn, tops_accepted, SE
         return False, False
 
 
-@jit(nopython=True)
 def conv_crit_distr_based(eq, since_burn, tops_accepted, SEQ, norm_tol):
     # last nonzero element of eq is since_burn. Length of nonzero part is since_burn + 1
     l = since_burn + 1
@@ -347,7 +345,6 @@ def conv_crit_distr_based(eq, since_burn, tops_accepted, SEQ, norm_tol):
         return False, False
 
 
-@jit(nopython=True)
 def conv_crit_majority_based(eq, since_burn, tops_accepted, SEQ):
     # last nonzero element of eq is since_burn. Length of nonzero part is since_burn + 1
     l = since_burn + 1
@@ -364,8 +361,7 @@ def conv_crit_majority_based(eq, since_burn, tops_accepted, SEQ):
         return False, False
 
 
-@jit(nopython=True)
-def conv_tvd_based(eq, since_burn, tops_accepted, SEQ, tol):
+def conv_crit_tvd_based(eq, since_burn, tops_accepted, SEQ, tol):
     # Total variational distance based convergence
 
     # last nonzero element of eq is since_burn. Length of nonzero part is since_burn + 1
@@ -382,8 +378,7 @@ def conv_tvd_based(eq, since_burn, tops_accepted, SEQ, tol):
         return False, False
 
 
-@jit(nopython=True)
-def conv_kl_based(eq, since_burn, tops_accepted, SEQ, tol):
+def conv_crit_kld_based(eq, since_burn, tops_accepted, SEQ, tol):
     # Kullback-Leibler based convergence
 
     # last nonzero element of eq is since_burn. Length of nonzero part is since_burn + 1
@@ -395,7 +390,11 @@ def conv_kl_based(eq, since_burn, tops_accepted, SEQ, tol):
     # Avoid division by zero and log of zero
     nonzero = np.logical_and(Q2_distr != 0, Q4_distr != 0)
     # calculate the symmetric kullback leibler distance between Q2 and Q4
-    kld = np.sum((Q2_distr - Q4_distr) * np.log2(np.divide(Q2_distr, Q4_distr)), where=nonzero)
+    if np.any(nonzero):
+        log = np.log2(np.divide(Q2_distr, Q4_distr, where=nonzero), where=nonzero)
+        kld = np.sum((Q2_distr - Q4_distr) * log, where=nonzero)
+    else:
+        kld = 100
 
     if np.linalg.norm(np.divide(kld, l, dtype=np.float)) < tol:
         return True, tops_accepted >= SEQ
