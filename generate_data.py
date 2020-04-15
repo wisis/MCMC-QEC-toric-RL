@@ -7,10 +7,7 @@ import os
 import sys
 from src.util import MCMCDataReader
 
-
-#@profile  # Efter att ha kört med profiler med 20 steps, 10 iters (to little hehe) tar ändå parallell tempering 97% av tiden
-def generate(file_path, params, max_capacity=10000, nbr_datapoints=100000000):
-    # Vi behöver öppna filen och kolla hur många entrys som finns
+def generate(file_path, params, max_capacity=10000, nbr_datapoints=100000000):  # This function generates training data with help of the MCMC algorithm
     try:
         df = pd.read_pickle(file_path)
         nbr_existing_data = df.index[-1][0] + 1
@@ -34,8 +31,8 @@ def generate(file_path, params, max_capacity=10000, nbr_datapoints=100000000):
         init_toric.generate_random_error(params['p'])
 
         # generate data for DataFrame storage  OBS now using full bincount, change this
-        [df_eq_distr, _, _, _, _] = parallel_tempering(init_toric, params['Nc'],p=params['p'], steps=params['steps'],
-                                                                iters=params['iters'], conv_criteria=params['conv_criteria'])
+        df_eq_distr = parallel_tempering(init_toric, params['Nc'],p=params['p'], steps=params['steps'],
+                                        iters=params['iters'], conv_criteria=params['conv_criteria'])
         
         df_qubit = init_toric.qubit_matrix.reshape((-1))  # flatten qubit matrix to store in dataframe
         

@@ -2,7 +2,7 @@ from .toric_model import Toric_code
 from .mcmc import *
 from .util import Action
 
-def visual(size):
+def visual(size):  # Function to create visualization of qubit matrix
     tc=Toric_code(size)
     d=tc.system_size
     tc.plot_toric_code(tc.next_state,'Visual')

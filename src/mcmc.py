@@ -1,13 +1,14 @@
 import numpy as np
 import random as rand
 import copy
-import collections 
+import collections
 
 from numba import jit, prange
 from .toric_model import Toric_code
 from .util import Action
+import pandas as pd
 
-rule_table = np.array(([[0, 1, 2, 3], [1, 0, 3, 2], 
+rule_table = np.array(([[0, 1, 2, 3], [1, 0, 3, 2],
                         [2, 3, 0, 1], [3, 2, 1, 0]]), dtype=int)    # Identity = 0
                                                                     # pauli_x = 1
                                                                     # pauli_y = 2
@@ -29,14 +30,14 @@ class Chain:
             else:
                 new_matrix, qubit_errors_change = apply_random_stabilizer(self.toric.qubit_matrix)
 
-            #r = r_chain(self.toric.qubit_matrix, new_matrix, self.p)
+            # r = r_chain(self.toric.qubit_matrix, new_matrix, self.p)
 
             # Avoid calculating r if possible. If self.p is 0.75 r = 1 and we accept all changes
             # If the new qubit matrix has equal or fewer errors, r >= 1 and we also accept all changes
             if self.p >= 0.75 or qubit_errors_change <= 0:
                 self.toric.qubit_matrix = new_matrix
                 continue
-            
+
             if rand.random() < ((self.p / 3.0) / (1.0 - self.p)) ** qubit_errors_change:
                 self.toric.qubit_matrix = new_matrix
 
@@ -45,8 +46,31 @@ class Chain:
         self.toric.plot_toric_code(self.toric.next_state, name)
 
 
-#@profile
-def parallel_tempering(init_toric, Nc=None, p=0.1, SEQ=5, TOPS=10, tops_burn=2, eps = 0.001, n_tol=1e-4, steps=1000, iters=10, conv_criteria='error_based'):
+class MCMCDataReader:  # This is the object we crate to read a file during training
+    def __init__(self, file_path, size):
+        self.__file_path = file_path
+        self.__size = size
+        self.__df = pd.read_pickle(file_path)
+        self.__current_index = 0
+        self.__capacity = self.__df.index[-1][0] + 1  # The number of data samples in the dataset
+
+    def next(self):
+        if self.__current_index < self.__capacity:
+            qubit_matrix = self.__df.loc[self.__current_index, 0:1, :, :].to_numpy(copy=True).reshape((2, self.__size, self.__size))
+            eq_distr = self.__df.loc[self.__current_index, 2:17, 0, 0].to_numpy(copy=True).reshape((-1))  # kanske inte behöver kopiera här?
+            self.__current_index += 1
+            return qubit_matrix, eq_distr
+        else:
+            return None, None  # How do we do this nicely? Maybe it can wrap around?
+
+    def has_next(self):
+        return self.__current_index < self.__capacity
+
+    def current_index(self):
+        return self.__current_index
+
+
+def parallel_tempering(init_toric, Nc=None, p=0.1, SEQ=5, TOPS=10, tops_burn=2, eps=0.001, n_tol=1e-4, steps=1000000, iters=10, conv_criteria='error_based'):
     size = init_toric.system_size
     Nc = Nc or size
 
@@ -54,18 +78,16 @@ def parallel_tempering(init_toric, Nc=None, p=0.1, SEQ=5, TOPS=10, tops_burn=2, 
     # number of chains in ladder, must be odd
     if not Nc % 2:
         print('Number of chains was not odd.')
-    
+
     if tops_burn >= TOPS:
         print('tops_burn has to be smaller than TOPS')
-    
+
     ladder = []  # ladder to store all chains
     p_end = 0.75  # p at top chain as per high-threshold paper
     tops0 = 0
     resulting_burn_in = 0
     nbr_errors_bottom_chain = np.zeros(steps)
-    eq = np.zeros([steps, 16], dtype=np.uint32) # list of class counts after burn in
-    eq_full = np.zeros([steps, 16], dtype=np.uint32) # list of class counts from start
-    # might only want one of these, as (eq_full[j] - eq[j - resulting_burn_in]) is constant
+    eq = np.zeros([steps, 16], dtype=np.uint32)  # list of class counts after burn in
 
     # used in error_based/majority_based instead of setting tops0 = TOPS
     tops_error_based = 0
@@ -87,24 +109,19 @@ def parallel_tempering(init_toric, Nc=None, p=0.1, SEQ=5, TOPS=10, tops_burn=2, 
         # current_eq attempt flips from the top down
         ladder[-1].flag = 1
         for i in reversed(range(Nc - 1)):
-            if r_flip(ladder[i].toric.qubit_matrix, ladder[i].p, ladder[i+1].toric.qubit_matrix, ladder[i+1].p):
-                ladder[i].toric, ladder[i+1].toric = ladder[i+1].toric, ladder[i].toric
-                ladder[i].flag, ladder[i+1].flag = ladder[i+1].flag, ladder[i].flag
+            if r_flip(ladder[i].toric.qubit_matrix, ladder[i].p, ladder[i + 1].toric.qubit_matrix, ladder[i + 1].p):
+                ladder[i].toric, ladder[i + 1].toric = ladder[i + 1].toric, ladder[i].toric
+                ladder[i].flag, ladder[i + 1].flag = ladder[i + 1].flag, ladder[i].flag
         if ladder[0].flag == 1:
             tops0 += 1
             ladder[0].flag = 0
 
         current_eq = define_equivalence_class(ladder[0].toric.qubit_matrix)
 
-        # current class count is previous class count + the current class
-        # edge case j = 0 is ok. eq_full[-1] picks last element, which is initiated as zeros
-        eq_full[j] = eq_full[j - 1]
-        eq_full[j][current_eq] += 1
-
         if tops0 >= tops_burn:
             since_burn = j - resulting_burn_in
 
-            eq[since_burn] = eq[since_burn-1]
+            eq[since_burn] = eq[since_burn - 1]
             eq[since_burn][current_eq] += 1
             nbr_errors_bottom_chain[since_burn] = np.count_nonzero(ladder[0].toric.qubit_matrix)
 
@@ -123,19 +140,22 @@ def parallel_tempering(init_toric, Nc=None, p=0.1, SEQ=5, TOPS=10, tops_burn=2, 
                 convergence_reached = conv_crit_distr_based(eq, since_burn, n_tol)
 
             if conv_criteria == 'majority_based':
-                #returns the majority class that becomes obvious right when convergence is reached
+                # returns the majority class that becomes obvious right when convergence is reached
                 tops_accepted = tops0 - tops_majority_based
                 accept, convergence_reached = conv_crit_majority_based(eq, since_burn, SEQ)
-            
+
                 # reset if majority classes in Q2 and Q4 are different
                 if not accept:
                     tops_majority_based = tops0
 
+        if convergence_reached:
+            break
+
     distr = (np.divide(eq[since_burn], since_burn + 1) * 100).astype(np.uint8)
-    return [distr, eq, eq_full, ladder[0], resulting_burn_in]
+    return distr
 
 
-def parallel_tempering_analysis(init_toric, Nc=None, p=0.1, SEQ=5, TOPS=10, tops_burn=2, eps = 0.01, n_tol=1e-4, steps=1000, iters=10, conv_criteria=None):
+def parallel_tempering_analysis(init_toric, Nc=None, p=0.1, SEQ=5, TOPS=10, tops_burn=2, eps=0.01, n_tol=1e-4, steps=1000, iters=10, conv_criteria=None):
     size = init_toric.system_size
     Nc = Nc or size
 
@@ -143,7 +163,7 @@ def parallel_tempering_analysis(init_toric, Nc=None, p=0.1, SEQ=5, TOPS=10, tops
     # number of chains in ladder, must be odd
     if not Nc % 2:
         print('Number of chains was not odd.')
-    
+
     if tops_burn >= TOPS:
         print('tops_burn has to be smaller than TOPS')
 
@@ -152,20 +172,20 @@ def parallel_tempering_analysis(init_toric, Nc=None, p=0.1, SEQ=5, TOPS=10, tops
     tops0 = 0
     resulting_burn_in = 0
     nbr_errors_bottom_chain = np.zeros(steps)
-    eq = np.zeros([steps, 16], dtype=np.uint32) # list of class counts after burn in
-    eq_full = np.zeros([steps, 16], dtype=np.uint32) # list of class counts from start
-    # might only want one of these, as (eq_full[j] - eq[j - resulting_burn_in]) is constant  
+    eq = np.zeros([steps, 16], dtype=np.uint32)  # list of class counts after burn in
+    eq_full = np.zeros([steps, 16], dtype=np.uint32)  # list of class counts from start
+    # might only want one of these, as (eq_full[j] - eq[j - resulting_burn_in]) is constant
 
     # used in error_based/majority_based instead of setting tops0 = TOPS
     tops_error_based = TOPS
     tops_majority_based = TOPS
-    
+
     # List of convergence criteria. Add any new ones to list
     conv_criteria = conv_criteria or ['error_based', 'distr_based', 'majority_based']
     # Dictionary to hold the converged distribution and the number of steps to converge, according to each criteria
     crits_distr = {}
     for crit in conv_criteria:
-        # every criteria gets an empty list, a number and a bool. 
+        # every criteria gets an empty list, a number and a bool.
         # The empty list represents eq_class_distr, the number is the step where convergence is reached, and the bool is whether convergence has been reached
         crits_distr[crit] = [[], -1, False]
 
@@ -179,16 +199,16 @@ def parallel_tempering_analysis(init_toric, Nc=None, p=0.1, SEQ=5, TOPS=10, tops
         ladder[i].toric = copy.deepcopy(init_toric)  # give all the same initial state
     ladder[Nc - 1].p_logical = 0.5  # set probability of application of logical operator in top chain
 
-    for j in tqdm(range(steps)):
+    for j in range(steps):
         # run mcmc for each chain [steps] times
         for i in range(Nc):
             ladder[i].update_chain(iters)
         # current_eq attempt flips from the top down
         ladder[-1].flag = 1
         for i in reversed(range(Nc - 1)):
-            if r_flip(ladder[i].toric.qubit_matrix, ladder[i].p, ladder[i+1].toric.qubit_matrix, ladder[i+1].p):
-                ladder[i].toric, ladder[i+1].toric = ladder[i+1].toric, ladder[i].toric
-                ladder[i].flag, ladder[i+1].flag = ladder[i+1].flag, ladder[i].flag
+            if r_flip(ladder[i].toric.qubit_matrix, ladder[i].p, ladder[i + 1].toric.qubit_matrix, ladder[i + 1].p):
+                ladder[i].toric, ladder[i + 1].toric = ladder[i + 1].toric, ladder[i].toric
+                ladder[i].flag, ladder[i + 1].flag = ladder[i + 1].flag, ladder[i].flag
         if ladder[0].flag == 1:
             tops0 += 1
             ladder[0].flag = 0
@@ -197,25 +217,25 @@ def parallel_tempering_analysis(init_toric, Nc=None, p=0.1, SEQ=5, TOPS=10, tops
 
         # current class count is previous class count + the current class
         # edge case j = 0 is ok. eq_full[-1] picks last element, which is initiated as zeros
-        eq_full[j] = eq_full[j-1]
+        eq_full[j] = eq_full[j - 1]
         eq_full[j][current_eq] += 1
 
         if tops0 >= tops_burn:
             since_burn = j - resulting_burn_in
 
-            eq[since_burn] = eq[since_burn-1]
+            eq[since_burn] = eq[since_burn - 1]
             eq[since_burn][current_eq] += 1
             nbr_errors_bottom_chain[since_burn] = np.count_nonzero(ladder[0].toric.qubit_matrix)
 
         else:
             # number of steps until tops0 = 2
             resulting_burn_in += 1
-        
+
         if tops0 >= TOPS and not since_burn % 10:
             if 'error_based' in conv_criteria and not crits_distr['error_based'][2]:
                 tops_accepted = tops0 - tops_error_based
                 accept, crits_distr['error_based'][2] = conv_crit_error_based(nbr_errors_bottom_chain, since_burn, tops_accepted, SEQ, eps)
-                
+
                 # Reset if difference in nbr_errors between Q2 and Q4 is too different
                 if not accept:
                     tops_error_based = tops0
@@ -232,10 +252,10 @@ def parallel_tempering_analysis(init_toric, Nc=None, p=0.1, SEQ=5, TOPS=10, tops
                     crits_distr['distr_based'][1] = since_burn
 
             if 'majority_based' in conv_criteria and not crits_distr['majority_based'][2]:
-         		# returns the majority class that becomes obvious right when convergence is reached
+                # returns the majority class that becomes obvious right when convergence is reached
                 tops_accepted = tops0 - tops_majority_based
                 accept, crits_distr['majority_based'][2] = conv_crit_majority_based(eq, since_burn, tops_accepted, SEQ)
-                
+
                 # reset if majority classes in Q2 and Q4 are different
                 if not accept:
                     tops_majority_based = tops0
@@ -243,7 +263,7 @@ def parallel_tempering_analysis(init_toric, Nc=None, p=0.1, SEQ=5, TOPS=10, tops
                 # Converged
                 if crits_distr['majority_based'][2]:
                     crits_distr['majority_based'][1] = since_burn
-     
+
     # plot all chains
     for i in range(Nc):
         ladder[i].plot('Chain_' + str(i))
@@ -251,37 +271,37 @@ def parallel_tempering_analysis(init_toric, Nc=None, p=0.1, SEQ=5, TOPS=10, tops
     distr = (np.divide(eq[since_burn], since_burn + 1) * 100).astype(np.uint8)
 
     for crit in conv_criteria:
-        #Check if converged
+        # Check if converged
         if crits_distr[crit][2]:
             # Calculate converged distribution from converged class count
-            crits_distr[crit][0] = np.divide(eq[crits_distr[crit][1]], crits_distr[crit][1] + 1) # Divide by "index+1" since first index is 0
+            crits_distr[crit][0] = np.divide(eq[crits_distr[crit][1]], crits_distr[crit][1] + 1)  # Divide by "index+1" since first index is 0
 
     return [distr, eq, eq_full, ladder[0], resulting_burn_in, crits_distr]
 
 
-def conv_crit_error_based(nbr_errors_bottom_chain, since_burn, tops_accepted, SEQ, eps):# Konvergenskriterium 1 i papper
+def conv_crit_error_based(nbr_errors_bottom_chain, since_burn, tops_accepted, SEQ, eps):  # Konvergenskriterium 1 i papper
     # last nonzero element of nbr_errors_bottom_chain is since_burn. Length of nonzero part is since_burn + 1
     l = since_burn + 1
     # Calculate average number of errors in 2nd and 4th quarter
     Average_Q2 = np.average(nbr_errors_bottom_chain[(l // 4): (l // 2)])
     Average_Q4 = np.average(nbr_errors_bottom_chain[(3 * l // 4): l])
 
-    #Compare averages
+    # Compare averages
     error = abs(Average_Q2 - Average_Q4)
-    
+
     if error < eps:
         return True, tops_accepted >= SEQ
     else:
         return False, False
 
 
-def conv_crit_distr_based(eq, since_burn, norm_tol=0.05): 
+def conv_crit_distr_based(eq, since_burn, norm_tol=0.05):
     # last nonzero element of eq is since_burn. Length of nonzero part is since_burn + 1
     l = since_burn + 1
     # Classes found during Q2 is (classes found in first half) - (classes found in first quarter)
     Q2_count = eq[l // 2] - eq[l // 4]
     Q4_count = eq[l - 1] - eq[3 * l // 4]
-    
+
     # Q2_count and Q4_count are unsigned ints. Have to convert to not overflow (ja, det hände)
     Q_diff = (Q4_count - Q2_count).astype(np.int32)
     return np.linalg.norm(np.divide(Q_diff, l, dtype=np.float)) < norm_tol
@@ -293,7 +313,7 @@ def conv_crit_majority_based(eq, since_burn, tops_accepted, SEQ):
     # Classes found during Q2 is (classes found in first half) - (classes found in first quarter)
     Q2_count = eq[l // 2] - eq[l // 4]
     Q4_count = eq[l - 1] - eq[3 * l // 4]
-    
+
     count_max_Q2 = np.argmax(Q2_count)
     count_max_Q4 = np.argmax(Q4_count)
 
@@ -302,6 +322,7 @@ def conv_crit_majority_based(eq, since_burn, tops_accepted, SEQ):
     else:
         return False, False
 
+
 @jit(nopython=True)
 def r_flip(qubit_lo, p_lo, qubit_hi, p_hi):
     ne_lo = 0
@@ -309,9 +330,9 @@ def r_flip(qubit_lo, p_lo, qubit_hi, p_hi):
     for i in range(2):
         for j in range(qubit_lo.shape[1]):
             for k in range(qubit_lo.shape[1]):
-                if qubit_lo[i,j,k] != 0:
+                if qubit_lo[i, j, k] != 0:
                     ne_lo += 1
-                if qubit_hi[i,j,k] != 0:
+                if qubit_hi[i, j, k] != 0:
                     ne_hi += 1
     # compute eqn (5) in high threshold paper
     if rand.random() < ((p_lo / p_hi) * ((1 - p_hi) / (1 - p_lo))) ** (ne_hi - ne_lo):
@@ -325,7 +346,7 @@ def apply_random_logical(qubit_matrix):
 
     # operator to use, 2 (Y) will make both X and Z on the same layer. 0 is identity
     # one operator for each layer
-    operators = [int(rand.random()*4),int(rand.random()*4)]
+    operators = [int(rand.random() * 4), int(rand.random() * 4)]
 
     # ok to not copy, since apply_logical doesnt change input
     result_qubit_matrix = qubit_matrix
@@ -508,8 +529,8 @@ def apply_stabilizers_uniform(qubit_matrix, p=0.5):
     size = qubit_matrix.shape[1]
     result_qubit_matrix = np.copy(qubit_matrix)
     random_stabilizers = np.random.rand(2, size, size)
-    random_stabilizers = np.less(random_stabilizers, p) 
-    
+    random_stabilizers = np.less(random_stabilizers, p)
+
     # Numpy magic for iterating through matrix
     it = np.nditer(random_stabilizers, flags=['multi_index'])
     while not it.finished:
@@ -523,27 +544,27 @@ def apply_stabilizers_uniform(qubit_matrix, p=0.5):
 
 
 def define_equivalence_class(qubit_matrix):
-    #checks odd and even errors in each layer
-    #gives a combination of four numbers corresponding to an equivalence class
+    # checks odd and even errors in each layer
+    # gives a combination of four numbers corresponding to an equivalence class
 
-    #checks odd or even x-errors in first layer
+    # checks odd or even x-errors in first layer
     x1prov = np.count_nonzero(qubit_matrix[0] == 1)
 
-    #checks odd or even z-errors in first layer
+    # checks odd or even z-errors in first layer
     z1prov = np.count_nonzero(qubit_matrix[0] == 3)
 
-    #checks odd or even y-erros in first layer and adds them to total number of x/z errors in first layer
+    # checks odd or even y-erros in first layer and adds them to total number of x/z errors in first layer
     y1prov = np.count_nonzero(qubit_matrix[0] == 2)
     x1 = x1prov + y1prov
     z1 = z1prov + y1prov
 
-    #checks odd or even x-errors in second layer
+    # checks odd or even x-errors in second layer
     x2prov = np.count_nonzero(qubit_matrix[1] == 1)
 
-    #checks odd or even z-errors in second layer
+    # checks odd or even z-errors in second layer
     z2prov = np.count_nonzero(qubit_matrix[1] == 3)
 
-    #checks odd or even y-erros in second layer and adds them to total number of x/z errors in second layer
+    # checks odd or even y-erros in second layer and adds them to total number of x/z errors in second layer
     y2prov = np.count_nonzero(qubit_matrix[1] == 2)
     x2 = x2prov + y2prov
     z2 = z2prov + y2prov
@@ -556,5 +577,3 @@ def define_equivalence_class(qubit_matrix):
     z2 = z2 % 2
 
     return x1 + z1 * 2 + x2 * 4 + z2 * 8
-    
-

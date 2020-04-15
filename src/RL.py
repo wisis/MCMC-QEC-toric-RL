@@ -20,9 +20,9 @@ from .Replay_memory import Replay_memory_uniform, Replay_memory_prioritized
 from NN import NN_11, NN_17
 from ResNet import ResNet18, ResNet34, ResNet50, ResNet101, ResNet152
 from .util import incremental_mean, convert_from_np_to_tensor, Transition
-from src.mcmc import Chain
-#from reward import reward
-from generate_data import MCMCDataReader #####?? Ned to fix dependencies 
+# import mcmc tools
+from src.mcmc import *
+
     
 class RL():
     def __init__(self, Network, Network_name, system_size=int, p_error=0.1, replay_memory_capacity=int, learning_rate=0.00025,
@@ -75,11 +75,12 @@ class RL():
         #row = layer, column = I/x/y/z error
         self.operator_table = np.array(([[0, 1, 5, 3], 
                                        [0, 2, 6, 4]), dtype = int)"""
-        self.correction_chain=Chain(self.toric.system_size,self.p_error)    # Correction chain added for implementing get_reward2(self)
-        self.a_last=Action(position = np.array([0, 0, 0]), action = 0)      # variable added for remembering latest action taken, also for implementing get_reward2(self)
-        self.eq_class = 0 #correction chain equivalence class
-        self.mcmc_data_reader =  MCMCDataReader(file_path = 'write training data directory here', size = 1000000) #Double check the size 
-        self.initial_qubit_matrix, self.eq_distr = self.mcmc_data_reader.next()
+        # MCMC modifications
+        # Correction chain added for implementing get_mcmc_reward(self)
+        self.correction_chain=Chain(self.toric.system_size,self.p_error)                                                 
+        # Create data-reader-object to handle training data
+        self.mcmc_data_reader =  MCMCDataReader(file_path = 'data/data_5.xz', size = self.system_size) ##HANDLE DIRECTORY WITH PARAMS?
+        self.eq_distr = None
         ######
 
     def save_network(self, PATH):
@@ -204,7 +205,7 @@ class RL():
         steps_counter = 0
         update_counter = 1
         iteration = 0
-        # define epsilon steps 
+        # define epsilon steps
         epsilon = epsilon_start
         num_of_steps = np.round(training_steps/num_of_epsilon_steps)
         epsilon_decay = np.round((epsilon_start-epsilon_end)/num_of_epsilon_steps, 5)
@@ -215,19 +216,13 @@ class RL():
             # initialize syndrom
             self.toric = Toric_code(self.system_size)
             terminal_state = 0
-            # generate syndroms....  Will be replaced with get syndroms from global data variable. Need some sort of counter to track where we are in data
-            while terminal_state == 0:
-                if minimum_nbr_of_qubit_errors == 0:
-                    ####
-                    """self.toric.generate_random_error(self.p_error)"""
-                    self.toric.qubit_matrix, self.eq_distr = self.mcmc_data_reader.next()
-                    self.syndrom('next_state')
-                    ####
-                else:
-                    self.toric.generate_n_random_errors(minimum_nbr_of_qubit_errors)
-                terminal_state = self.toric.terminal_state(self.toric.current_state)
-            
-            
+            # generate syndroms....  Will be replaced with get syndroms from global data variable. Need some sort of counter to track where we are in data   
+            #### MCMC-gang changes
+            self.toric.qubit_matrix, self.eq_distr = self.mcmc_data_reader.next()
+            self.toric.syndrom('state')
+            ####
+            terminal_state = self.toric.terminal_state(self.toric.current_state)
+
             # solve one episode
             while terminal_state == 1 and num_of_steps_per_episode < self.max_nbr_actions_per_episode and iteration < training_steps:
                 num_of_steps_per_episode += 1
@@ -236,26 +231,26 @@ class RL():
                 iteration += 1
                 # select action using epsilon greedy policy
                 action = self.select_action(number_of_actions=self.number_of_actions,
-                                            epsilon=epsilon, 
+                                            epsilon=epsilon,
                                             grid_shift=self.grid_shift)
-                #a_last=action
-                """######here we need to add the changes to the equivalence class caused by the operator. 
+                # a_last=action
+                """######here we need to add the changes to the equivalence class caused by the operator.
                 layer = action.position[0]
                 add_operator = action.action
                 #Check if operator is X1 X2 Z1 Z2 or Y1 Y2
                 self.eq_class = eq_class_rule_table[self.operator_table[layer][add_operator]][self.eq_class]
                 #######"""
-                
-                self.correction_chain.toric.step(action)    
+
+                self.correction_chain.toric.step(action)
                 self.toric.step(action)
-                reward = self.get_reward2()
-                
+                reward = self.get_mcmc_reward()
+
                 # generate memory entry
                 perspective, action_memory, reward, next_perspective, terminal = self.toric.generate_memory_entry(
-                    action, reward, self.grid_shift)    
+                    action, reward, self.grid_shift)
                 # save transition in memory
-                self.memory.save(Transition(perspective, action_memory, reward, next_perspective, terminal), 10000) # max priority
-            
+                self.memory.save(Transition(perspective, action_memory, reward, next_perspective, terminal), 10000)  # max priority
+
                 # experience replay
                 if steps_counter > replay_start_size:
                     update_counter += 1
@@ -281,22 +276,19 @@ class RL():
             defects_state = np.sum(self.toric.current_state)
             defects_next_state = np.sum(self.toric.next_state)
             reward = defects_state - defects_next_state
-
         return reward
 
-    def get_reward2(self):
+    def get_mcmc_reward(self):
         terminal = np.all(self.toric.next_state==0)
         if terminal == True:
-            #reward = reward(self.toric,self.correction_chain,self.p_error) #rewrad is the share of coorection_chains equivlaence class
-            self.eq_class = self.correction_chain.define_equivalence_class(self.correction_chain.toric.qubit_matrix)
-            self.correction_chain=Chain(self.toric.system_size,self.p_error) #reset chain
-            return 100*self.eq_distr[self.eq_class] #proportional reward
+            print(self.mcmc_data_reader.current_index())
+            eq_class = define_equivalence_class(self.correction_chain.toric.qubit_matrix)
+            self.correction_chain = Chain(self.toric.system_size, self.p_error) #reset chain
+            return self.eq_distr[eq_class]  # proportional reward
         else:
             return 0
-        #else:
-            #self.correction_chain.toric.step(a_last) #adds the action to the correction chain since it doesnt resolve the syndrom
-         #   reward = 0                          #we only give reward at the end
-   
+
+
     def select_action(self, number_of_actions=int, epsilon=float, grid_shift=int):
         # set network in evluation mode 
         self.policy_net.eval()
