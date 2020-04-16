@@ -13,16 +13,19 @@ from .toric_model import Toric_code
 from .mcmc import *
 
 # Runs test_numeric_distribution_convergence for an array of different tolerences
-def compare_graphic(convergence_criteria='error_based',tolerences=[1.6,0.8,0.4,0.2,0.1,0.05],SEQs=[5,4,3]):
+def compare_graphic(convergence_criteria='error_based',tolerences=[1.6,0.8,0.4,0.2,0.1,0.05],SEQs=[2,1,0]):
     x = tolerences
     y = np.zeros(len(tolerences))
-    for i in range(len(tolerences)):
-        [_,_,_,tmp]=test_numeric_distribution_convergence(convergence_criteria,x[i],x[i],False)
-        y[i]=tmp
-    plt.title(convergence_criteria) 
-    plt.xlabel("tolerence") 
-    plt.ylabel("max diff") 
-    plt.plot(x,y) 
+    for j in range(len(SEQs)):
+        for i in range(len(tolerences)):
+            [_,_,_,tmp]=test_numeric_distribution_convergence(convergence_criteria,SEQs[j],x[i],x[i],False)
+            y[i]=tmp
+        
+        plt.subplot(np.ceil(np.sqrt(15)),np.ceil(np.sqrt(15)),j+1)
+        plt.title(convergence_criteria) 
+        plt.xlabel("tolerence") 
+        plt.ylabel("max diff") 
+        plt.plot(x,y) 
     plt.show()
 
 # Returns an array [nmbr_1st,nmbr_2nd,nmbr_3rd,max_1], and saves the same data in .txt files
@@ -30,8 +33,8 @@ def compare_graphic(convergence_criteria='error_based',tolerences=[1.6,0.8,0.4,0
 # a distribution that has the same most likely equivalence class (1st likely). Same way for nmbr_2nd and nmbr_3rd.
 # max_1 is the maximum total variational distance between the different equivalence classes.
 def test_numeric_distribution_convergence(convergence_criteria='distr_based',SEQ=2,eps=0.1,n_tol=0.05,bool=False):
-    arr=test_distribution_convergence(convergence_criteria,SEQ=SEQ,eps,n_tol,False)
-    #arr=[[0.5,0.3,0.05,0.15,0,1.15,0,0,0,0,0,0,0,0,0,0],[0.5,0.3,0.2,0,0,0,0,0,0,0,0,0,0,0,0,0],[0.5,0.3,0.2,0,0,0,0,0,0,0,0,0,0,0,0,0],[0.5,0.3,0.2,0,0,0,0,0,0,0,0,0,0,0,0,0],[0.5,0.3,0.2,0,0,0,0,0,0,0,0,0,0,0,0,0],[0.5,0.3,0.2,0,0,0,0,0,0,0,0,0,0,0,0,0],[0.5,0.3,0.2,0,0,0,0,0,0,0,0,0,0,0,0,0],[0.5,0.3,0.2,0,0,0,0,0,0,0,0,0,0,0,0,0],[0.5,0.3,0.2,0,0,0,0,0,0,0,0,0,0,0,0,0],[0.5,0.3,0.2,0,0,0,0,0,0,0,0,0,0,0,0,0],[0.5,0.3,0.2,0,0,0,0,0,0,0,0,0,0,0,0,0],[0.5,0.3,0.2,0,0,0,0,0,0,0,0,0,0,0,0,0],[0.5,0.3,0.2,0,0,0,0,0,0,0,0,0,0,0,0,0],[0.5,0.3,0.2,0,0,0,0,0,0,0,0,0,0,0,0,0],[0.5,0.3,0.2,0,0,0,0,0,0,0,0,0,0,0,0,0],[0.5,0.3,0.2,0,0,0,0,0,0,0,0,0,0,0,0,0]]
+    arr=test_distribution_convergence(convergence_criteria,SEQ,eps,n_tol,False)
+    #arr=np.ndarray([[0.5,0.3,0.05,0.15,0,1.15,0,0,0,0,0,0,0,0,0,0],[0.5,0.3,0.2,0,0,0,0,0,0,0,0,0,0,0,0,0],[0.5,0.3,0.2,0,0,0,0,0,0,0,0,0,0,0,0,0],[0.5,0.3,0.2,0,0,0,0,0,0,0,0,0,0,0,0,0],[0.5,0.3,0.2,0,0,0,0,0,0,0,0,0,0,0,0,0],[0.5,0.3,0.2,0,0,0,0,0,0,0,0,0,0,0,0,0],[0.5,0.3,0.2,0,0,0,0,0,0,0,0,0,0,0,0,0],[0.5,0.3,0.2,0,0,0,0,0,0,0,0,0,0,0,0,0],[0.5,0.3,0.2,0,0,0,0,0,0,0,0,0,0,0,0,0],[0.5,0.3,0.2,0,0,0,0,0,0,0,0,0,0,0,0,0],[0.5,0.3,0.2,0,0,0,0,0,0,0,0,0,0,0,0,0],[0.5,0.3,0.2,0,0,0,0,0,0,0,0,0,0,0,0,0],[0.5,0.3,0.2,0,0,0,0,0,0,0,0,0,0,0,0,0],[0.5,0.3,0.2,0,0,0,0,0,0,0,0,0,0,0,0,0],[0.5,0.3,0.2,0,0,0,0,0,0,0,0,0,0,0,0,0],[0.5,0.3,0.2,0,0,0,0,0,0,0,0,0,0,0,0,0]])
     nmbr_1st=0
     nmbr_2nd=0
     nmbr_3rd=0
