@@ -397,7 +397,6 @@ def conv_crit_kld_based(eq, since_burn, tops_accepted, SEQ, tol):
         kld = 100
 
     if kld < tol:
-        print(kld)
         return True, tops_accepted >= SEQ
     else:
         return False, False
