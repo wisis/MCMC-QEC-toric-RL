@@ -5,9 +5,11 @@ import copy
 import pandas as pd
 import os
 import sys
-from src.util import MCMCDataReader
+import time
+from src.mcmc import MCMCDataReader
 
-def generate(file_path, params, max_capacity=10000, nbr_datapoints=100000000):  # This function generates training data with help of the MCMC algorithm
+def generate(file_path, params, timeout, max_capacity=10000, nbr_datapoints=1000000):  # This function generates training data with help of the MCMC algorithm
+    t_start = time.time()
     try:
         df = pd.read_pickle(file_path)
         nbr_existing_data = df.index[-1][0] + 1
@@ -24,6 +26,12 @@ def generate(file_path, params, max_capacity=10000, nbr_datapoints=100000000):  
 
     df_list = []
     for i in np.arange(nbr_to_generate) + nbr_existing_data:
+        
+        #timer 
+        if time.time() - t_start > timeout: 
+        	print("timeout reached: " + str(timeout) + "s")
+        	break 
+        
         print('Starting generation of point nr: ' + str(i + 1))
         
         # Initiate toric
@@ -66,33 +74,36 @@ def generate(file_path, params, max_capacity=10000, nbr_datapoints=100000000):  
 
 if __name__ == '__main__':
     # All paramteters for data generation is set here, some may be irrelevant depending on the choice of others
+    t_start = time.time()
     params = {  'size':5,
-                'p':0.10,
-                'Nc':11,
-                'steps':10000,
+                'p':0.185,
+                'Nc':9,
+                'steps':500000,
                 'iters':10,
-                'conv_criteria':'none',
-                'SEQ':2,
+                'conv_criteria': 'error_based',
+                'SEQ':7,
                 'TOPS':10,
-                'eps':0.1}
+                'eps':0.005}
 
-    # get job array id
+    # get job array id, set working directory, set timer 
     try:
         array_id = str(sys.argv[1])
         local_dir = str(sys.argv[2])
+        timeout = int(sys.argv[3])
     except:
         array_id = '0'
         local_dir = '.'
+        timeout = 100000000000
         print('invalid sysargs')
 
     # build file path
     file_path=os.path.join(local_dir, 'data_' + array_id + '.xz')
     
     # generate data
-    generate(file_path, params, 10, 5)
+    generate(file_path, params, timeout)
     
     #view_all_data(file_path)
     iterator = MCMCDataReader(file_path, params['size'])
     while iterator.has_next():
-        print('Datapoint nr: '+ str(iterator.current_index() + 1))
+        print('Datapoint nr: ' + str(iterator.current_index() + 1))
         print(iterator.next())

@@ -248,6 +248,8 @@ class RL():
                 self.correction_chain.toric.step(action)
                 self.toric.step(action)
                 reward = self.get_mcmc_reward()
+                if reward != 0: 
+                	print("num_of_steps_per_episode: " + str(num_of_steps_per_episode))
 
                 # generate memory entry
                 perspective, action_memory, reward, next_perspective, terminal = self.toric.generate_memory_entry(
@@ -280,15 +282,17 @@ class RL():
             defects_state = np.sum(self.toric.current_state)
             defects_next_state = np.sum(self.toric.next_state)
             reward = defects_state - defects_next_state
+        #print(reward)
         return reward
 
     def get_mcmc_reward(self):
         terminal = np.all(self.toric.next_state==0)
         if terminal == True:
-            print(self.mcmc_data_reader.current_index())
             eq_class = define_equivalence_class(self.correction_chain.toric.qubit_matrix)
             self.correction_chain = Chain(self.toric.system_size, self.p_error) #reset chain
-            return self.eq_distr[eq_class]  # proportional reward
+            reward = self.eq_distr[eq_class]  # proportional reward
+            print("data point: " + str(self.mcmc_data_reader.current_index()) + " reward: " + str(reward))
+            return reward
         else:
             return 0
 
