@@ -102,7 +102,7 @@ def parallel_tempering_plus(init_toric, Nc=None, p=0.1, SEQ=5, TOPS=10, tops_bur
         ladder[i].toric = copy.deepcopy(init_toric)  # give all the same initial state
     ladder[Nc - 1].p_logical = 0.5  # set probability of application of logical operator in top chain
 
-    count=0
+    count = -1
     for j in range(steps):
         # run mcmc for each chain [steps] times
         for i in range(Nc):

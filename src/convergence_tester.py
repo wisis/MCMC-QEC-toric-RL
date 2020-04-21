@@ -4,29 +4,52 @@ import copy
 import time
 import matplotlib.pyplot as plt
 import sys
+import os
 
 from .toric_model import *
 from .util import Action
 from .mcmc import *
 
 from .toric_model import Toric_code
-from .mcmc import *
 
 
-def Nc_tester(Nc_interval=[1,31]):
-    t=Toric_code(5)
-    t.generate_n_random_errors(5)
-    k=Nc_interval[1]-Nc_interval[0]+1
-    x=np.zeros(k)
-    y=np.zeros(k)
-    for i in range(Nc_interval[0],Nc_interval[1],2):
-        _,y[i-1]=parallel_tempering_plus(t, Nc=2*i+1, p=0.1, SEQ=10, TOPS=10, tops_burn=2, eps=0.01,n_tol=1, steps=10000000, iters=10, conv_criteria='error_based')
-        x[i-1]=2*i+1
-    plt.title("Titel") 
-    plt.xlabel("Nc") 
-    plt.ylabel("# steps") 
-    plt.plot(x,y) 
-    plt.show()
+def Nc_tester(file_path, Nc_interval=[3,31]):
+    size = 5
+    p_error = 0.15
+    SEQ = 8
+    Nc = 9
+    TOPS = 10
+    tops_burn = 5
+    steps = 1000
+    eps = 0.008
+    iters = 10
+    conv_criteria='error_based'
+
+    stats = pd.DataFrame(columns=['Nc', 'time', 'steps'])
+
+    # Number of times every parameter configuration is tested
+    pop = 10
+
+    t_list = []
+    for i in range(pop):
+        t = Toric_code(5)
+        t.generate_random_error(p_error)
+        t_list.append(t)
+
+    k=(Nc_interval[1] - Nc_interval[0]) / 2 + 1
+
+    for Nc in range(Nc_interval[0], Nc_interval[1], 2):
+        for pt in range(pop):
+            t1 = time.time()
+            _, conv_step = parallel_tempering_plus(copy.deepcopy(t_list[pt]), Nc=Nc, p=p_error, SEQ=SEQ, TOPS=TOPS, tops_burn=tops_burn, eps=eps, steps=steps, iters=iters, conv_criteria=conv_criteria)
+            delta_t = time.time() - t1
+
+            tmp_dict = {'Nc': Nc, 'time': delta_t, 'steps': conv_step}
+
+            stats = stats.append(tmp_dict, ignore_index=True)
+
+    stats.to_pickle(file_path)
+
     
 # Runs test_numeric_distribution_convergence for an array of different tolerences
 def compare_graphic(convergence_criteria='error_based',tolerences=[1.6,0.8,0.4,0.2,0.1,0.05],SEQs=[2,1,0]):
@@ -195,6 +218,96 @@ def test_distribution_convergence(convergence_criteria='distr_based',SEQ=2,eps=0
 
     return array_of_distributions, array_of_time
     
+
+def convergence_analysis():
+    size = 5
+    p_error = 0.15
+    Nc = 9
+    TOPS=10
+    tops_burn=5
+    steps=500000
+
+    # Number of times every parameter configuration is tested
+    pop = 10
+
+    #criteria = ['error_based', 'distr_based', 'majority_based', 'tvd_based', 'kld_based']
+    criteria = ['error_based']
+
+    SEQ_list = [i for i in range(2, 11, 2)]
+
+    lst = np.array([1, 2, 4, 7, 10])
+    eps_list = lst*1e-3
+    n_tol_list = lst * 1e-3
+    tvd_tol_list = lst * 8e-4 + 2e-2
+    kld_tol_list = lst * 5e-3 + 5e-1
+    
+    lists = {'error_based': eps_list, 'distr_based': n_tol_list, 'majority_based': [0]*len(lst), 'tvd_based': tvd_tol_list, 'kld_based': kld_tol_list}
+
+    tols = {crit: lists[crit] for crit in criteria}
+
+    def tvd(a, b):
+        return np.amax(np.absolute(a - b))
+
+    def kld(a, b):
+        nonzero = np.logical_and(a != 0, b != 0)
+        if np.any(nonzero):
+            log = np.log2(np.divide(a, b, where=nonzero), where=nonzero)
+            return np.sum((a - b) * log, where=nonzero)
+        else:
+            return -1
+
+    #crits_stats = {crit: [[], [], [], [], []] for crit in criteria}
+    crits_stats = pd.DataFrame(columns=['criteria', 'SEQ', 'tol', 'kld', 'tvd', 'steps'])
+
+    t1 = time.time()
+
+    for SEQ in SEQ_list:
+        for i in range(len(lst)):
+            for j in range(pop):
+                print('##################################')
+                print('SEQ: ', SEQ, 'i: ', i, 'j: ', j)
+
+                init_toric = Toric_code(size)
+                init_toric.generate_random_error(p_error)
+
+                args = {}
+                if 'error_based' in criteria:
+                    eps = tols['error_based'][i]
+                    args['eps'] = eps
+                
+                if 'distr_based' in criteria:
+                    n_tol = tols['distr_based'][i]
+                    args['n_tol'] = n_tol
+
+                if 'tvd_based' in criteria:
+                    tvd_tol = tols['tvd_based'][i]
+                    args['tvd_tol'] = tvd_tol
+
+                if 'kld_based' in criteria:
+                    kld_tol = tols['kld_based'][i]
+                    args['kld_tol'] = kld_tol
+
+                [distr, eq, eq_full, chain0, burn_in, crits_distr] = parallel_tempering_analysis(init_toric, Nc, p=p_error, TOPS=TOPS, SEQ=SEQ, tops_burn=tops_burn, steps=steps, conv_criteria=criteria, **args)
+
+                distr = np.divide(distr.astype(np.float), 100)
+
+                for crit in criteria:
+                    tvd_crit = tvd(distr, crits_distr[crit][0])
+                    kld_crit = kld(distr, crits_distr[crit][0])
+                    print('==============================================')
+                    print(crit)
+                    print('convergence step: ', crits_distr[crit][1])
+                    print('kld: ', kld_crit)
+                    print('tvd:', tvd_crit)
+                    tmp_dict = {'criteria': crit, 'SEQ': SEQ, 'tol': tols[crit][i], 'kld': kld_crit, 'tvd': tvd_crit, 'steps': crits_distr[crit][1]}
+                    crits_stats = crits_stats.append(tmp_dict, ignore_index=True)
+
+        print('SEQ: ', SEQ, ', Time completed: ', time.time() - t1)
+    
+    file_name = 'conv_test_SEQ_' + str(SEQ_list[0]) + '_' + str(SEQ_list[-1]) + '_p_' + str(p_error) + '.xz'
+    crits_stats.to_pickle(file_name)
+
+
 def time_all_seeds(convergence_criteria='distr_based',eps=0.1,n_tol=0.5):
     torr=seed(1)
     print('Equivalence class of seed(1): ' + str(define_equivalence_class(torr.qubit_matrix)))
@@ -331,3 +444,19 @@ print("Convergence critera: " + convergence_criteria + ", eps: "+ str(eps) +", n
 [tmp,_,_,_]=test_numeric_distribution_convergence(convergence_criteria,eps,n_tol,bool=True)
 print("Number of seed with same largest bin: " + str(tmp))   
 '''
+
+if __name__ == '__main__':
+    try:
+        array_id = str(sys.argv[1])
+        local_dir = str(sys.argv[2])
+        timeout = int(sys.argv[3])
+    except:
+        array_id = '0'
+        local_dir = '.'
+        timeout = 100000000000
+        print('invalid sysargs')
+
+    # Build file path
+    file_path = os.path.join(local_dir, 'Nc_data_' + array_id + '.xz')
+
+    Nc_tester(file_path=file_path, Nc_interval=[3, 31])
