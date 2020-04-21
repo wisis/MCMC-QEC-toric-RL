@@ -12,6 +12,22 @@ from .mcmc import *
 from .toric_model import Toric_code
 from .mcmc import *
 
+
+def Nc_tester(Nc_interval=[1,31]):
+    t=Toric_code(5)
+    t.generate_n_random_errors(5)
+    k=Nc_interval[1]-Nc_interval[0]+1
+    x=np.zeros(k)
+    y=np.zeros(k)
+    for i in range(Nc_interval[0],Nc_interval[1],2):
+        _,y[i-1]=parallel_tempering_plus(t, Nc=2*i+1, p=0.1, SEQ=10, TOPS=10, tops_burn=2, eps=0.01,n_tol=1, steps=10000000, iters=10, conv_criteria='error_based')
+        x[i-1]=2*i+1
+    plt.title("Titel") 
+    plt.xlabel("Nc") 
+    plt.ylabel("# steps") 
+    plt.plot(x,y) 
+    plt.show()
+    
 # Runs test_numeric_distribution_convergence for an array of different tolerences
 def compare_graphic(convergence_criteria='error_based',tolerences=[1.6,0.8,0.4,0.2,0.1,0.05],SEQs=[2,1,0]):
     x = tolerences
