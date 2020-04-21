@@ -70,7 +70,7 @@ class MCMCDataReader:  # This is the object we crate to read a file during train
         return self.__current_index
 
 
-def parallel_tempering(init_toric, Nc=None, p=0.1, SEQ=5, TOPS=10, tops_burn=2, eps=0.001, n_tol=1e-4, steps=1000000, iters=10, conv_criteria='error_based'):
+def parallel_tempering_plus(init_toric, Nc=None, p=0.1, SEQ=5, TOPS=10, tops_burn=2, eps=0.001, n_tol=1e-4, steps=1000000, iters=10, conv_criteria='error_based'):
     size = init_toric.system_size
     Nc = Nc or size
 
@@ -102,6 +102,7 @@ def parallel_tempering(init_toric, Nc=None, p=0.1, SEQ=5, TOPS=10, tops_burn=2, 
         ladder[i].toric = copy.deepcopy(init_toric)  # give all the same initial state
     ladder[Nc - 1].p_logical = 0.5  # set probability of application of logical operator in top chain
 
+    count=0
     for j in range(steps):
         # run mcmc for each chain [steps] times
         for i in range(Nc):
@@ -154,11 +155,15 @@ def parallel_tempering(init_toric, Nc=None, p=0.1, SEQ=5, TOPS=10, tops_burn=2, 
                     tops_change = tops0
 
         if convergence_reached:
+            count=j
             break
 
     distr = (np.divide(eq[since_burn], since_burn + 1) * 100).astype(np.uint8)
-    return distr
+    return distr, count
 
+def parallel_tempering(init_toric, Nc=None, p=0.1, SEQ=5, TOPS=10, tops_burn=2, eps=0.001, n_tol=1e-4, steps=1000000, iters=10, conv_criteria='error_based'):
+    distr,_= parallel_tempering_plus(init_toric, Nc=None, p=0.1, SEQ=5, TOPS=10, tops_burn=2, eps=0.001, n_tol=1e-4, steps=1000000, iters=10, conv_criteria='error_based')
+    return distr
 
 def parallel_tempering_analysis(init_toric, Nc=None, p=0.1, SEQ=5, TOPS=10, tops_burn=2, eps=0.01, n_tol=1e-4, tvd_tol=0.05, kld_tol=0.5, steps=1000, iters=10, conv_criteria=None):
     size = init_toric.system_size

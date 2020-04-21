@@ -13,16 +13,28 @@ from .toric_model import Toric_code
 from .mcmc import *
 
 # Runs test_numeric_distribution_convergence for an array of different tolerences
-def compare_graphic(convergence_criteria='error_based',tolerences=[1.6,0.8,0.4,0.2,0.1,0.05],SEQs=[5,4,3]):
+def compare_graphic(convergence_criteria='error_based',tolerences=[1.6,0.8,0.4,0.2,0.1,0.05],SEQs=[2,1,0]):
     x = tolerences
     y = np.zeros(len(tolerences))
-    for i in range(len(tolerences)):
-        [_,_,_,tmp]=test_numeric_distribution_convergence(convergence_criteria,x[i],x[i],False)
-        y[i]=tmp
-    plt.title(convergence_criteria) 
-    plt.xlabel("tolerence") 
-    plt.ylabel("max diff") 
-    plt.plot(x,y) 
+    y2 = np.zeros(len(tolerences))
+    for j in range(len(SEQs)):
+        for i in range(len(tolerences)):
+            [_,_,_,tmp,time_temp]=test_numeric_distribution_convergence(convergence_criteria,SEQs[j],x[i],x[i],False)
+            y[i]=tmp
+            y2[i]=time_temp*0.000001
+        
+        subplot_size=np.ceil(np.sqrt(2*len(SEQs)))
+        plt.subplot(subplot_size,subplot_size,2*j+1)
+        plt.title(convergence_criteria + "SEQ=" +str(SEQs[j])) 
+        plt.xlabel("tolerence") 
+        plt.ylabel("max diff") 
+        plt.plot(x,y) 
+
+        plt.subplot(subplot_size,subplot_size,2*j+2)
+        plt.title(convergence_criteria + "SEQ=" +str(SEQs[j])) 
+        plt.xlabel("tol.") 
+        plt.ylabel("# steps (e+5)") 
+        plt.plot(x,y2) 
     plt.show()
 
 # Returns an array [nmbr_1st,nmbr_2nd,nmbr_3rd,max_1], and saves the same data in .txt files
@@ -30,12 +42,13 @@ def compare_graphic(convergence_criteria='error_based',tolerences=[1.6,0.8,0.4,0
 # a distribution that has the same most likely equivalence class (1st likely). Same way for nmbr_2nd and nmbr_3rd.
 # max_1 is the maximum total variational distance between the different equivalence classes.
 def test_numeric_distribution_convergence(convergence_criteria='distr_based',SEQ=2,eps=0.1,n_tol=0.05,bool=False):
-    arr=test_distribution_convergence(convergence_criteria,SEQ=SEQ,eps,n_tol,False)
-    #arr=[[0.5,0.3,0.05,0.15,0,1.15,0,0,0,0,0,0,0,0,0,0],[0.5,0.3,0.2,0,0,0,0,0,0,0,0,0,0,0,0,0],[0.5,0.3,0.2,0,0,0,0,0,0,0,0,0,0,0,0,0],[0.5,0.3,0.2,0,0,0,0,0,0,0,0,0,0,0,0,0],[0.5,0.3,0.2,0,0,0,0,0,0,0,0,0,0,0,0,0],[0.5,0.3,0.2,0,0,0,0,0,0,0,0,0,0,0,0,0],[0.5,0.3,0.2,0,0,0,0,0,0,0,0,0,0,0,0,0],[0.5,0.3,0.2,0,0,0,0,0,0,0,0,0,0,0,0,0],[0.5,0.3,0.2,0,0,0,0,0,0,0,0,0,0,0,0,0],[0.5,0.3,0.2,0,0,0,0,0,0,0,0,0,0,0,0,0],[0.5,0.3,0.2,0,0,0,0,0,0,0,0,0,0,0,0,0],[0.5,0.3,0.2,0,0,0,0,0,0,0,0,0,0,0,0,0],[0.5,0.3,0.2,0,0,0,0,0,0,0,0,0,0,0,0,0],[0.5,0.3,0.2,0,0,0,0,0,0,0,0,0,0,0,0,0],[0.5,0.3,0.2,0,0,0,0,0,0,0,0,0,0,0,0,0],[0.5,0.3,0.2,0,0,0,0,0,0,0,0,0,0,0,0,0]]
+    arr, time_array=test_distribution_convergence(convergence_criteria,SEQ,eps,n_tol,False)
+    #arr=np.ndarray([[0.5,0.3,0.05,0.15,0,1.15,0,0,0,0,0,0,0,0,0,0],[0.5,0.3,0.2,0,0,0,0,0,0,0,0,0,0,0,0,0],[0.5,0.3,0.2,0,0,0,0,0,0,0,0,0,0,0,0,0],[0.5,0.3,0.2,0,0,0,0,0,0,0,0,0,0,0,0,0],[0.5,0.3,0.2,0,0,0,0,0,0,0,0,0,0,0,0,0],[0.5,0.3,0.2,0,0,0,0,0,0,0,0,0,0,0,0,0],[0.5,0.3,0.2,0,0,0,0,0,0,0,0,0,0,0,0,0],[0.5,0.3,0.2,0,0,0,0,0,0,0,0,0,0,0,0,0],[0.5,0.3,0.2,0,0,0,0,0,0,0,0,0,0,0,0,0],[0.5,0.3,0.2,0,0,0,0,0,0,0,0,0,0,0,0,0],[0.5,0.3,0.2,0,0,0,0,0,0,0,0,0,0,0,0,0],[0.5,0.3,0.2,0,0,0,0,0,0,0,0,0,0,0,0,0],[0.5,0.3,0.2,0,0,0,0,0,0,0,0,0,0,0,0,0],[0.5,0.3,0.2,0,0,0,0,0,0,0,0,0,0,0,0,0],[0.5,0.3,0.2,0,0,0,0,0,0,0,0,0,0,0,0,0],[0.5,0.3,0.2,0,0,0,0,0,0,0,0,0,0,0,0,0]])
     nmbr_1st=0
     nmbr_2nd=0
     nmbr_3rd=0
     max_1=0
+    max_time=max(time_array)
     # temp can be viewed as 16 different counters
     temp=np.zeros(16)
     temp2=0
@@ -115,33 +128,38 @@ def test_numeric_distribution_convergence(convergence_criteria='distr_based',SEQ
         # Write the used convergence criteria
         f.write("Convergence criteria: " + convergence_criteria)
         # Write the used tolerence
-        f.write('\n eps:' + str(eps) + '\n SEQ_' + str(SEQ) + "\n \n")
+        f.write('\n eps= ' + str(eps) + '\n SEQ=' + str(SEQ))
+        # Write the time it takes
+        f.write("\nMaximum number of steps for convergence: " +str(max_time) + "\n \n")
     elif convergence_criteria=='distr_based':
         f=open("data_" + convergence_criteria + '_ntol_' + str(n_tol) + '_SEQ_' + str(SEQ) + ".txt","w")
         f.write("Convergence criteria: " + convergence_criteria)
-        f.write('\n ntol: ' + str(n_tol) + '\n SEQ_' + str(SEQ) + "\n \n")
+        f.write('\n ntol= ' + str(n_tol) + '\n SEQ= ' + str(SEQ))
+        f.write("\nMaximum number of steps for convergence: " +str(max_time) + "\n \n")
 
     #Write the different critera parameters in the file adn close it
     f.write("Number of equivalent 1st: " + str(nmbr_1st) + "\nNumber of equivalent 2nd: "+ str(nmbr_2nd) + "\nNumber of equivalent 3rd: "+ str(nmbr_3rd))
     f.write("\n\nMax difference: " + str(max_1))
     f.close()
     #Also return the different critera parameters
-    return [nmbr_1st,nmbr_2nd,nmbr_3rd,max_1]
+    return [nmbr_1st,nmbr_2nd,nmbr_3rd,max_1,max_time]
     
 # Returns list with 16 rows. 
 # Each row contains the equivalence class distribution. 
 # Each row uses a seed from a different equivalence class.
 def test_distribution_convergence(convergence_criteria='distr_based',SEQ=2,eps=0.1,n_tol=0.05,boll=False):
     array_of_distributions=[]
+    array_of_time=np.zeros(16)
     #Does paralell tempering for each of the 16 equivalence classes
     for i in range(16):
         # Choose seed
         t = seed(i+1)
-        temp= parallel_tempering(t, Nc=9, p=0.1, SEQ=SEQ, TOPS=10, tops_burn=2, eps=eps,n_tol=n_tol, steps=1000000, iters=10, conv_criteria=convergence_criteria)
+        temp,count= parallel_tempering_plus(t, Nc=9, p=0.1, SEQ=SEQ, TOPS=10, tops_burn=2, eps=eps,n_tol=n_tol, steps=1000000, iters=10, conv_criteria=convergence_criteria)
         #convert to int32 because parallel_tempering returns only unsigned ints from 0 to 256
         temp=temp.astype(np.int32)
         #add the distribution from the current seed to the list to be returned
         array_of_distributions += [temp]
+        array_of_time[i]=count
     
     #boolean parameter boll, if boll==True, then prints the distributions of the 16 equivalence classes as 16 subplots.
     if boll:
@@ -159,7 +177,7 @@ def test_distribution_convergence(convergence_criteria='distr_based',SEQ=2,eps=0
             plt.title('') 
         plt.show() 
 
-    return array_of_distributions
+    return array_of_distributions, array_of_time
     
 def time_all_seeds(convergence_criteria='distr_based',eps=0.1,n_tol=0.5):
     torr=seed(1)
