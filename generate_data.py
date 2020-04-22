@@ -12,8 +12,8 @@ from src.toric_model import Toric_code
 
 
 # This function generates training data with help of the MCMC algorithm
-def generate(
-        file_path, params, timeout, max_capacity=10**4, nbr_datapoints=10**6):
+def generate(file_path, params, timeout,
+             max_capacity=10**4, nbr_datapoints=10**6):
 
     t_start = time.time()  # Initiates timing of run
 
@@ -31,9 +31,9 @@ def generate(
     # Stop the file from exceeding the max limit of nbr of datapoints
     nbr_to_generate = min(max_capacity-nbr_existing_data, nbr_datapoints)
     if nbr_to_generate < nbr_datapoints:
-        print('Generating ' + str(max(nbr_to_generate, 0)) +
-              ' datapoins instead of ' + str(nbr_datapoints) +
-              ', as the given number would overflow existing file')
+        print('Generating ' + str(max(nbr_to_generate, 0))
+              + ' datapoins instead of ' + str(nbr_datapoints)
+              + ', as the given number would overflow existing file')
 
     df_list = []  # Initiate temporary list
 
@@ -51,16 +51,16 @@ def generate(
         init_toric = Toric_code(params['size'])
         init_toric.generate_random_error(params['p'])
 
-        # generate data for DataFrame storage  OBS now using full bincount, change this
+        # Generate data for DataFrame storage  OBS now using full bincount, change this
         df_eq_distr = parallel_tempering(init_toric, params['Nc'],
                                          p=params['p'], steps=params['steps'],
                                          iters=params['iters'],
                                          conv_criteria=params['conv_criteria'])
 
-        # flatten initial qubit matrix to store in dataframe
+        # Flatten initial qubit matrix to store in dataframe
         df_qubit = init_toric.qubit_matrix.reshape((-1))
 
-        # create indices for generated data
+        # Create indices for generated data
         names = ['data_nr', 'layer', 'x', 'y']
         index_qubit = pd.MultiIndex.from_product([[i], np.arange(2),
                                                  np.arange(params['size']),

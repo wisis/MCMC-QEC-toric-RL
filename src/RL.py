@@ -3,7 +3,7 @@ import os
 import sys
 import numpy as np
 import random
-import time #for timing cluster
+import time  # for timing cluster
 from collections import namedtuple, Counter
 import operator
 import os
@@ -18,7 +18,7 @@ from .toric_model import Toric_code
 from .toric_model import Action
 from .toric_model import Perspective
 from .Replay_memory import Replay_memory_uniform, Replay_memory_prioritized
-# import networks 
+# import networks
 from NN import NN_11, NN_17
 from ResNet import ResNet18, ResNet34, ResNet50, ResNet101, ResNet152
 from .util import incremental_mean, convert_from_np_to_tensor, Transition
@@ -29,7 +29,7 @@ from src.mcmc import *
 class RL():
     def __init__(self, Network, Network_name, system_size=int, p_error=0.1, replay_memory_capacity=int, learning_rate=0.00025,
                 discount_factor=0.95, number_of_actions=3, max_nbr_actions_per_episode=50, device='cpu', replay_memory='uniform', DATA_FILE_PATH='.', timeout=10000000):
-        
+
         # device
         self.device = device
         # Toric code
@@ -64,7 +64,7 @@ class RL():
         # hyperparameters RL
         self.discount_factor = discount_factor
         self.number_of_actions = number_of_actions
-        
+
         """#####
         #Table that returns the change of equivalence class with an operator in a specific layer. Rows stand for X1 X2 Z1 Z2 Y1 Y2 as defined in mcmc.py define_equivalence_class method. Columns stand for equivalence classes 
         self.eq_class_rule_table = np.array(([[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15],
@@ -79,9 +79,10 @@ class RL():
                                        [0, 2, 6, 4]), dtype = int)"""
         # MCMC modifications
         # Correction chain added for implementing get_mcmc_reward(self)
-        self.correction_chain=Chain(self.toric.system_size,self.p_error)                                                 
+        self.correction_chain = Chain(self.toric.system_size, self.p_error)
         # Create data-reader-object to handle training data
-        self.mcmc_data_reader =  MCMCDataReader(file_path = DATA_FILE_PATH, size = self.system_size) ##HANDLE DIRECTORY WITH PARAMS?
+        self.mcmc_data_reader = MCMCDataReader(file_path=DATA_FILE_PATH,
+                                               size=self.system_size)  # HANDLE DIRECTORY WITH PARAMS?
         self.eq_distr = None
         self.t_start = time.time()
         self.timeout = timeout
@@ -285,12 +286,13 @@ class RL():
         #print(reward)
         return reward
 
+    # Reward based on equivalence class distribution estimated through MCMC-sampling
     def get_mcmc_reward(self):
         terminal = np.all(self.toric.next_state==0)
         if terminal == True:
             eq_class = define_equivalence_class(self.correction_chain.toric.qubit_matrix)
-            self.correction_chain = Chain(self.toric.system_size, self.p_error) #reset chain
-            reward = self.eq_distr[eq_class]  # proportional reward
+            self.correction_chain = Chain(self.toric.system_size, self.p_error)  # Reset chain
+            reward = self.eq_distr[eq_class]  # Proportional reward
             print("data point: " + str(self.mcmc_data_reader.current_index()) + " reward: " + str(reward))
             return reward
         else:
