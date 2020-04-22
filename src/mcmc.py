@@ -50,9 +50,13 @@ class MCMCDataReader:  # This is the object we crate to read a file during train
     def __init__(self, file_path, size):
         self.__file_path = file_path
         self.__size = size
-        self.__df = pd.read_pickle(file_path)
+        try:
+            self.__df = pd.read_pickle(file_path)
+            self.__capacity = self.__df.index[-1][0] + 1  # The number of data samples in the dataset
+        except:
+            print('No input file for MCMCDataReader')
         self.__current_index = 0
-        self.__capacity = self.__df.index[-1][0] + 1  # The number of data samples in the dataset
+        
 
     def next(self):
         if self.__current_index < self.__capacity:

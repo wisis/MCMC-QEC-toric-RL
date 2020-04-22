@@ -17,7 +17,7 @@ def generate(
 
     t_start = time.time()  # Initiates timing of run
 
-    # Creates data file if there is none or adds to it
+    # Creates data file if there is none otherwise adds to it
     try:
         df = pd.read_pickle(file_path)
         nbr_existing_data = df.index[-1][0] + 1
@@ -28,7 +28,7 @@ def generate(
     print('\nDataFrame with ' + str(nbr_existing_data) +
           ' datapoints opened at: ' + str(file_path))
 
-    # Stop the file from exceeding the max limit nbr of datapoints
+    # Stop the file from exceeding the max limit of nbr of datapoints
     nbr_to_generate = min(max_capacity-nbr_existing_data, nbr_datapoints)
     if nbr_to_generate < nbr_datapoints:
         print('Generating ' + str(max(nbr_to_generate, 0)) +
@@ -82,7 +82,7 @@ def generate(
         df_list.append(df_qubit)
         df_list.append(df_distr)
 
-        # (suggestion) Every x iteration adds data to datafile from temporary list
+        # (suggestion) Every x iteration adds data to data file from temporary list
         # and clears temporary list
         # |
         # V
@@ -93,7 +93,7 @@ def generate(
             print('Intermediate save point reached (writing over)')
             df.to_pickle(file_path)
 
-    # Saves any remaining data from temporary list when run is done
+    # Adds any remaining data from temporary list to data file when run is over
     if len(df_list) > 0:
         df = df.append(df_list)
         print('\nSaving all generated data (writing over)')
@@ -133,7 +133,7 @@ if __name__ == '__main__':
     # Generate data
     generate(file_path, params, timeout)
 
-    # (suggestion) View datafile
+    # (suggestion) View data file
     # |
     # V
     # View_all_data(file_path)

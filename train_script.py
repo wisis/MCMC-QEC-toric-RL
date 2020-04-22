@@ -44,7 +44,9 @@ rl = RL(Network=NETWORK,
         discount_factor=0.95,
         max_nbr_actions_per_episode=5,
         device=device,
-        replay_memory='proportional')   # proportional  
+        replay_memory='proportional',
+        DATA_FILE_PATH='data/data__concat.xz',
+        timeout=1000000000)   # proportional  
                                         # uniform
 
 
@@ -66,13 +68,13 @@ if continue_training == True:
 rl.train_for_n_epochs(training_steps=10000,
                     num_of_predictions=1,
                     num_of_steps_prediction=5,
-                    epochs=2,
-                    target_update=10,
+                    epochs=1,
+                    target_update=1000,
                     optimizer='Adam',
-                    batch_size=1,
+                    batch_size=32,
                     directory_path = PATH,
                     prediction_list_p_error=[0.1],
-                    replay_start_size=48)
+                    replay_start_size=1000)
 
 
 """ rl.train_for_n_epochs(training_steps=10000,
