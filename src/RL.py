@@ -215,7 +215,7 @@ class RL():
         epsilon_decay = np.round((epsilon_start-epsilon_end)/num_of_epsilon_steps, 5)
         epsilon_update = num_of_steps * reach_final_epsilon
         # main loop over training steps
-        while iteration < training_steps and self.mcmc_data_reader.has_next() and (time.time() - self.t_start) < timeout:
+        while iteration < training_steps and self.mcmc_data_reader.has_next() and (time.time() - self.t_start) < self.timeout:
             num_of_steps_per_episode = 0
             # initialize syndrom
             self.toric = Toric_code(self.system_size)
