@@ -224,7 +224,7 @@ def convergence_analysis(file_path):
                 kld_crit = kld(distr, crits_distr[crit][0])
                 tmp_dict = {'SEQ': SEQ, 'eps': eps, 'kld': kld_crit, 'tvd': tvd_crit, 'steps': crits_distr[crit][1]}
                 crits_stats = crits_stats.append(tmp_dict, ignore_index=True)
-    
+
     crits_stats.to_pickle(file_path)
 
 
@@ -511,7 +511,7 @@ if __name__ == '__main__':
     #file_path = os.path.join(local_dir, 'Nc_data_' + array_id + '.xz')
     #Nc_tester(file_path=file_path, Nc_interval=[3, 31])
 
-    file_path = os.path.join(local_dir, 'conv_data_' + array_id + '.xz')
-    convergence_analysis(file_path)
+    #file_path = os.path.join(local_dir, 'conv_data_' + array_id + '.xz')
+    #convergence_analysis(file_path)
 
-    #Nc_visuals(files = 6)
+    Nc_visuals(files = 6)

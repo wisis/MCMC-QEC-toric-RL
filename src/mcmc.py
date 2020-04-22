@@ -41,9 +41,9 @@ class Chain:
             if rand.random() < ((self.p / 3.0) / (1.0 - self.p)) ** qubit_errors_change:
                 self.toric.qubit_matrix = new_matrix
 
-    def plot(self, name):
+    def plot(self, name, eq_class=None):
         self.toric.syndrom('next_state')
-        self.toric.plot_toric_code(self.toric.next_state, name)
+        self.toric.plot_toric_code(self.toric.next_state, name, eq_class)
 
 
 class MCMCDataReader:  # This is the object we crate to read a file during training
@@ -204,7 +204,7 @@ def parallel_tempering_analysis(init_toric, Nc=None, p=0.1, SEQ=5, TOPS=10, tops
         tops_distr[crit] = TOPS
 
     # plot initial error configuration
-    init_toric.plot_toric_code(init_toric.next_state, 'Chain_init')
+    init_toric.plot_toric_code(init_toric.next_state, 'Chain_init', define_equivalence_class(init_toric.qubit_matrix))
 
     # add and copy state for all chains in ladder
     for i in range(Nc):
@@ -309,7 +309,7 @@ def parallel_tempering_analysis(init_toric, Nc=None, p=0.1, SEQ=5, TOPS=10, tops
 
     # plot all chains
     for i in range(Nc):
-        ladder[i].plot('Chain_' + str(i))
+        ladder[i].plot('Chain_' + str(i), define_equivalence_class(ladder[i].toric.qubit_matrix))
 
     distr = (np.divide(eq[since_burn], since_burn + 1) * 100).astype(np.uint8)
 

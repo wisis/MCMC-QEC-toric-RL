@@ -36,13 +36,19 @@ def convergence_tester():
 
 
 def main3(): # P_s som funktion av p
-    points = 60
-    size = 7
+    points = 20
+    size = 5
     init_toric = Toric_code(size)
-    Nc = 11
-    p_error = [i*0.01 + 0.01 for i in range(points)]
+    Nc = 19
+    TOPS=20
+    SEQ=30
+    tops_burn=10
+    eps=0.008
+    steps=1000000
+    p_error = [i*0.01 + 0.05 for i in range(points)]
 
     # define error
+    '''
     action = Action(position = np.array([1, 1, 0]), action = 2) #([vertical=0,horisontal=1, y-position, x-position]), action = x=1,y=2,z=3,I=0)
     init_toric.step(action)#1
     action = Action(position = np.array([1, 2, 0]), action = 1)
@@ -59,6 +65,18 @@ def main3(): # P_s som funktion av p
     init_toric.step(action)#2
     action = Action(position = np.array([1, 6, 1]), action = 2)
     init_toric.step(action)#2
+    '''
+
+    init_toric.qubit_matrix = np.array([[[0, 0, 0, 0, 0],
+                                         [0, 0, 0, 0, 0],
+                                         [1, 0, 0, 0, 1],
+                                         [0, 0, 0, 0, 0],
+                                         [0, 0, 0, 0, 0]],
+                                        [[0, 0, 1, 0, 0],
+                                         [0, 0, 0, 0, 0],
+                                         [0, 0, 0, 0, 0],
+                                         [0, 0, 0, 0, 0],
+                                         [0, 0, 1, 0, 0]]])
 
     #init_toric.generate_n_random_errors(9)
 
@@ -77,9 +95,9 @@ def main3(): # P_s som funktion av p
     for i in range(points):
         #init_toric.qubit_matrix, _ = apply_random_logical(startingqubit)
 
-        [distr, _, eq_full, _, _] = parallel_tempering(init_toric, 15, p=p_error[i], steps=10000, iters=10, conv_criteria='none')
+        distr = parallel_tempering(init_toric, Nc=Nc, p=p_error[i], steps=steps, SEQ=SEQ, TOPS=TOPS, tops_burn=tops_burn, eps=eps, conv_criteria='error_based')
         #print("error #" + str(i) + ': ', eq_class_count_BC/np.sum(eq_class_count_BC))
-        distr_i = eq_full[-1]/np.sum(eq_full[-1])
+        distr_i = np.divide(distr, np.sum(distr), dtype=np.float)
         data.append(distr_i)
         print(p_error[i], distr_i)
     
@@ -140,21 +158,32 @@ def eq_evolution():
 def convergence_analysis():
     size = 5
     init_toric = Toric_code(size)
-    p_error = 0.1
-    Nc = 9
+    p_error = 0.185
+    Nc = 19
     TOPS=20
-    SEQ=20
-    tops_burn=5
-    eps=0.01
+    SEQ=30
+    tops_burn=10
+    eps=0.008
     n_tol=1e-4
     steps=1000000
 
-    criteria = ['error_based', 'distr_based', 'majority_based']
+    criteria = ['error_based'] #, 'distr_based', 'majority_based']
 
     # define error
-    init_toric.qubit_matrix[1, 1, 0] = 2
-    init_toric.qubit_matrix[1, 2, 0] = 1
-    init_toric.qubit_matrix[1, 3, 0] = 1
+    #init_toric.qubit_matrix[1, 1, 0] = 2
+    #init_toric.qubit_matrix[1, 2, 0] = 1
+    #init_toric.qubit_matrix[1, 3, 0] = 1
+
+    init_toric.qubit_matrix = np.array([[[0, 0, 0, 0, 0],
+                                         [0, 0, 0, 0, 0],
+                                         [0, 1, 2, 1, 0],
+                                         [0, 0, 0, 0, 0],
+                                         [0, 0, 0, 0, 0]],
+                                        [[0, 0, 0, 0, 0],
+                                         [0, 0, 1, 0, 0],
+                                         [0, 0, 2, 0, 0],
+                                         [0, 0, 1, 0, 0],
+                                         [0, 0, 0, 0, 0]]])
 
     # eller använd någon av dessa för att initiera slumpartat
     #nbr_error = 9
@@ -163,7 +192,7 @@ def convergence_analysis():
     init_toric.syndrom('next_state')
 
     # plot initial error configuration
-    init_toric.plot_toric_code(init_toric.next_state, 'Chain_init')
+    init_toric.plot_toric_code(init_toric.next_state, 'Chain_init', define_equivalence_class(init_toric.qubit_matrix))
     t1 = time.time()
 
     init_toric.qubit_matrix, _ = apply_random_logical(init_toric.qubit_matrix)
@@ -172,14 +201,15 @@ def convergence_analysis():
 
     mean_history = np.array([eq[x] / (x + 1) for x in range(steps)])
 
-    plt.plot(mean_history)
+    for i in range(16):
+        plt.plot(mean_history[: , i], label=i)
     print('Steps to burn in: ', burn_in)
     for crit in criteria:
         print('==============================================')
         print(crit)
         print('convergence step: ', crits_distr[crit][1])
         print('converged distribution: ', crits_distr[crit][0])
-        plt.axvline(x=crits_distr[crit][1], label=crit)
+        #plt.axvline(x=crits_distr[crit][1], label=crit)
 
     plt.legend(loc=1)
     plt.show()
