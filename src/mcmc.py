@@ -165,8 +165,9 @@ def parallel_tempering_plus(init_toric, Nc=None, p=0.1, SEQ=5, TOPS=10, tops_bur
     distr = (np.divide(eq[since_burn], since_burn + 1) * 100).astype(np.uint8)
     return distr, count
 
+
 def parallel_tempering(init_toric, Nc=None, p=0.1, SEQ=5, TOPS=10, tops_burn=2, eps=0.001, n_tol=1e-4, steps=1000000, iters=10, conv_criteria='error_based'):
-    distr,_= parallel_tempering_plus(init_toric, Nc=None, p=0.1, SEQ=5, TOPS=10, tops_burn=2, eps=0.001, n_tol=1e-4, steps=1000000, iters=10, conv_criteria='error_based')
+    distr, _ = parallel_tempering_plus(init_toric=init_toric, Nc=Nc, p=p, SEQ=SEQ, TOPS=TOPS, tops_burn=tops_burn, eps=eps, n_tol=n_tol, steps=steps, iters=iters, conv_criteria=conv_criteria)
     return distr
 
 def parallel_tempering_analysis(init_toric, Nc=None, p=0.1, SEQ=5, TOPS=10, tops_burn=2, eps=0.01, n_tol=1e-4, tvd_tol=0.05, kld_tol=0.5, steps=1000, iters=10, conv_criteria=None):
