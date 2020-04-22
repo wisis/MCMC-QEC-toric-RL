@@ -5,6 +5,7 @@ import time
 import matplotlib.pyplot as plt
 import sys
 import os
+import pandas as pd
 
 from .toric_model import *
 from .util import Action
@@ -39,6 +40,7 @@ def Nc_tester(file_path, Nc_interval=[3,31]):
     k=(Nc_interval[1] - Nc_interval[0]) / 2 + 1
 
     for Nc in range(Nc_interval[0], Nc_interval[1], 2):
+        print('Nc =', Nc, '/ ', Nc_interval[1])
         for pt in range(pop):
             t1 = time.time()
             _, conv_step = parallel_tempering_plus(copy.deepcopy(t_list[pt]), Nc=Nc, p=p_error, SEQ=SEQ, TOPS=TOPS, tops_burn=tops_burn, eps=eps, steps=steps, iters=iters, conv_criteria=conv_criteria)
@@ -50,7 +52,101 @@ def Nc_tester(file_path, Nc_interval=[3,31]):
 
     stats.to_pickle(file_path)
 
+
+def Nc_visuals(files=6):
+    file_base = 'output/Nc_data_'
+
+    stats = pd.DataFrame(columns=['Nc', 'time', 'steps'])
+    for i in range(files):
+        df = pd.read_pickle(file_base + str(i) + '.xz')
+        stats = pd.concat([stats, df])
+
+    agg_stats = ['Nc', 'time_mean', 'time_std', 'time_geom_mean', 'time_geom_std', 'steps_mean', 'steps_std', 'steps_geom_mean', 'steps_geom_std']
+
+    agg_data = pd.DataFrame(columns = agg_stats)
+
+    Nc_values = np.unique(stats['Nc'].to_numpy())
+
+    # Number of data points
+    tot_pts = stats.shape[0]
+    # Number of different Nc values
+    Nc_pts = Nc_values.size
+    # Number of samples per (SEQ, tol) pair
+    pop = int(tot_pts / Nc_pts)
+
+    def geom_mean(series):
+        array=series.to_numpy()
+        return np.exp(np.average(np.log(array)))
+
+    def geom_std(series):
+        array=series.to_numpy()
+        return np.exp(np.std(np.log(array)))
+
+    for Nc in Nc_values:
+        # Window of points for current Nc value
+        window = stats[stats['Nc'] == Nc]
+        # Only look at converged runs
+        window = window[window['steps'] != -1]
+        # Calculate step time
+        window['steptime'] = window['time'] / window['steps']
+        # Mean and std values over converged runs
+        agg = window.agg(['mean', 'std', geom_mean, geom_std])
+        # number of converged runs
+        nbr_converged = window.shape[0]
+        # temporary dict to append to aggregated data
+        tmp_dict = {'Nc': Nc, 'nbr_converged': nbr_converged}
+        for name in ['time', 'steps', 'steptime']:
+            for op in ['mean', 'std', 'geom_mean', 'geom_std']:
+                tmp_dict[name + '_' + op] = agg.loc[op][name]
+
+        # append aggregate data for current Nc value to agg_data
+        agg_data = agg_data.append(tmp_dict, ignore_index=True)
     
+    
+    fig, host = plt.subplots(2)
+
+    ax = host[0]
+    converged = window['steps'] != -1
+
+    nbr_converged = agg_data['nbr_converged']
+    #yerr = [klds * (1 - 1/std_tvds), klds * (std_tvds - 1)]
+    #ax.errorbar(tols, klds, yerr=yerr, label='Distance')
+    ax.errorbar(Nc_values, agg_data['time_mean'].to_numpy(), yerr=agg_data['time_std'], label='Convergence time')
+    #ax.scatter(Nc_values, agg_data['time_mean'], label='Convergence_time')
+
+    #ax.set_title('Convergence steps and time as a function of Nc')
+    ax.set_xlabel('Nc')
+    #ax.set_xscale('log')
+    ax.set_ylabel('Time [s]')
+    ax.legend(loc='upper left')
+    ax.set_ylim(0, agg_data['time_mean'].max()*1.5)
+    #ax.set_yscale('log')
+    
+    par = ax.twinx()
+    par.bar(Nc_values, agg_data['steps_mean'].to_numpy(), width=1.6, color='gray', alpha=0.5, label='Convergence step')
+    par.set_ylabel('Convergence step')
+    par.legend(loc='upper right')
+    par.set_ylim(0, 5e5)
+    ax.set_zorder(2)
+    ax.patch.set_visible(False)
+
+    ax2 = host[1]
+    ax2.errorbar(Nc_values, agg_data['steptime_mean'].to_numpy(), yerr=agg_data['steptime_std'], label='Time per step')
+
+    ax2.set_xlabel('Nc')
+
+    ax2.set_ylabel('Step time [s]')
+    ax2.legend(loc='upper left')
+    ax2.set_ylim(0, agg_data['steptime_mean'].max()*1.3)
+    #ax.set_yscale('log')
+
+    #ax.set_xlim(min(Nc_values) * 0.7, max(Nc_values) * 1.05)
+    
+    #fig.suptitle('Kullback-Leibler distance from converged distribution')
+    #fig.suptitle('Convergence steps and time as a function of Nc')
+    plt.show()
+
+
 # Runs test_numeric_distribution_convergence for an array of different tolerences
 def compare_graphic(convergence_criteria='error_based',tolerences=[1.6,0.8,0.4,0.2,0.1,0.05],SEQs=[2,1,0]):
     x = tolerences
@@ -75,6 +171,62 @@ def compare_graphic(convergence_criteria='error_based',tolerences=[1.6,0.8,0.4,0
         plt.ylabel("# steps (e+5)") 
         plt.plot(x,y2) 
     plt.show()
+
+
+def convergence_analysis(file_path):
+    size = 5
+    p_error = 0.15
+    Nc = 19
+    TOPS=20
+    tops_burn=10
+    steps=1000000
+
+    # Number of times every parameter configuration is tested
+    pop = 10
+
+    #criteria = ['error_based', 'distr_based', 'majority_based', 'tvd_based', 'kld_based']
+    criteria = ['error_based']
+    crit = 'error_based'
+
+    SEQ_list = [20, 25, 30, 35, 40]#[i for i in range(4, 25, 2)]
+
+    eps_list = [2e-3*i for i in range(1, 6)]
+
+    def tvd(a, b):
+        nonzero = np.logical_and(a != 0, b != 0)
+        if np.any(nonzero):
+            return np.amax(np.absolute(a - b))
+        else:
+            return -1
+
+    def kld(a, b):
+        nonzero = np.logical_and(a != 0, b != 0)
+        if np.any(nonzero):
+            log = np.log2(np.divide(a, b, where=nonzero), where=nonzero)
+            return np.sum((a - b) * log, where=nonzero)
+        else:
+            return -1
+
+    #crits_stats = {crit: [[], [], [], [], []] for crit in criteria}
+    crits_stats = pd.DataFrame(columns=['SEQ', 'eps', 'kld', 'tvd', 'steps'])
+
+    for SEQ in SEQ_list:
+        for eps in eps_list:
+            for j in range(pop):
+                init_toric = Toric_code(size)
+                init_toric.generate_random_error(p_error)
+
+                [distr, eq, eq_full, chain0, burn_in, crits_distr] = parallel_tempering_analysis(init_toric, Nc, p=p_error, TOPS=TOPS, SEQ=SEQ, tops_burn=tops_burn, steps=steps, conv_criteria=criteria, eps=eps)
+
+                distr = np.divide(distr.astype(np.float), 100)
+
+                tvd_crit = tvd(distr, crits_distr[crit][0])
+                kld_crit = kld(distr, crits_distr[crit][0])
+                tmp_dict = {'SEQ': SEQ, 'eps': eps, 'kld': kld_crit, 'tvd': tvd_crit, 'steps': crits_distr[crit][1]}
+                crits_stats = crits_stats.append(tmp_dict, ignore_index=True)
+    
+    crits_stats.to_pickle(file_path)
+
 
 # Returns an array [nmbr_1st,nmbr_2nd,nmbr_3rd,max_1], and saves the same data in .txt files
 # For a given convergence criteria and tolerence. nmbr_1st is the number of different seeds( maximum 16) which converges to
@@ -160,7 +312,6 @@ def test_numeric_distribution_convergence(convergence_criteria='distr_based',SEQ
     # a distribution that has the same third most likely equivalence class (3rd most likely)
     nmbr_3rd=max(temp)
 
-    
     if convergence_criteria=='error_based':
         # Create new file eps value in the file name
         f=open("data_" + convergence_criteria + '_eps_' + str(eps) + '_SEQ_' + str(SEQ) + ".txt","w")
@@ -182,7 +333,8 @@ def test_numeric_distribution_convergence(convergence_criteria='distr_based',SEQ
     f.close()
     #Also return the different critera parameters
     return [nmbr_1st,nmbr_2nd,nmbr_3rd,max_1,max_time]
-    
+
+
 # Returns list with 16 rows. 
 # Each row contains the equivalence class distribution. 
 # Each row uses a seed from a different equivalence class.
@@ -217,95 +369,6 @@ def test_distribution_convergence(convergence_criteria='distr_based',SEQ=2,eps=0
         plt.show() 
 
     return array_of_distributions, array_of_time
-    
-
-def convergence_analysis():
-    size = 5
-    p_error = 0.15
-    Nc = 9
-    TOPS=10
-    tops_burn=5
-    steps=500000
-
-    # Number of times every parameter configuration is tested
-    pop = 10
-
-    #criteria = ['error_based', 'distr_based', 'majority_based', 'tvd_based', 'kld_based']
-    criteria = ['error_based']
-
-    SEQ_list = [i for i in range(2, 11, 2)]
-
-    lst = np.array([1, 2, 4, 7, 10])
-    eps_list = lst*1e-3
-    n_tol_list = lst * 1e-3
-    tvd_tol_list = lst * 8e-4 + 2e-2
-    kld_tol_list = lst * 5e-3 + 5e-1
-    
-    lists = {'error_based': eps_list, 'distr_based': n_tol_list, 'majority_based': [0]*len(lst), 'tvd_based': tvd_tol_list, 'kld_based': kld_tol_list}
-
-    tols = {crit: lists[crit] for crit in criteria}
-
-    def tvd(a, b):
-        return np.amax(np.absolute(a - b))
-
-    def kld(a, b):
-        nonzero = np.logical_and(a != 0, b != 0)
-        if np.any(nonzero):
-            log = np.log2(np.divide(a, b, where=nonzero), where=nonzero)
-            return np.sum((a - b) * log, where=nonzero)
-        else:
-            return -1
-
-    #crits_stats = {crit: [[], [], [], [], []] for crit in criteria}
-    crits_stats = pd.DataFrame(columns=['criteria', 'SEQ', 'tol', 'kld', 'tvd', 'steps'])
-
-    t1 = time.time()
-
-    for SEQ in SEQ_list:
-        for i in range(len(lst)):
-            for j in range(pop):
-                print('##################################')
-                print('SEQ: ', SEQ, 'i: ', i, 'j: ', j)
-
-                init_toric = Toric_code(size)
-                init_toric.generate_random_error(p_error)
-
-                args = {}
-                if 'error_based' in criteria:
-                    eps = tols['error_based'][i]
-                    args['eps'] = eps
-                
-                if 'distr_based' in criteria:
-                    n_tol = tols['distr_based'][i]
-                    args['n_tol'] = n_tol
-
-                if 'tvd_based' in criteria:
-                    tvd_tol = tols['tvd_based'][i]
-                    args['tvd_tol'] = tvd_tol
-
-                if 'kld_based' in criteria:
-                    kld_tol = tols['kld_based'][i]
-                    args['kld_tol'] = kld_tol
-
-                [distr, eq, eq_full, chain0, burn_in, crits_distr] = parallel_tempering_analysis(init_toric, Nc, p=p_error, TOPS=TOPS, SEQ=SEQ, tops_burn=tops_burn, steps=steps, conv_criteria=criteria, **args)
-
-                distr = np.divide(distr.astype(np.float), 100)
-
-                for crit in criteria:
-                    tvd_crit = tvd(distr, crits_distr[crit][0])
-                    kld_crit = kld(distr, crits_distr[crit][0])
-                    print('==============================================')
-                    print(crit)
-                    print('convergence step: ', crits_distr[crit][1])
-                    print('kld: ', kld_crit)
-                    print('tvd:', tvd_crit)
-                    tmp_dict = {'criteria': crit, 'SEQ': SEQ, 'tol': tols[crit][i], 'kld': kld_crit, 'tvd': tvd_crit, 'steps': crits_distr[crit][1]}
-                    crits_stats = crits_stats.append(tmp_dict, ignore_index=True)
-
-        print('SEQ: ', SEQ, ', Time completed: ', time.time() - t1)
-    
-    file_name = 'conv_test_SEQ_' + str(SEQ_list[0]) + '_' + str(SEQ_list[-1]) + '_p_' + str(p_error) + '.xz'
-    crits_stats.to_pickle(file_name)
 
 
 def time_all_seeds(convergence_criteria='distr_based',eps=0.1,n_tol=0.5):
@@ -329,6 +392,7 @@ def time_all_seeds(convergence_criteria='distr_based',eps=0.1,n_tol=0.5):
     plt.title('Time for converging from different equivalence classes') 
     plt.show() 
     return time_array
+
 
 #Initial seed. Is used in seed(number) to generate seeds from all 16 eq-classes
 def in_seed(seed_number):
@@ -362,6 +426,8 @@ def in_seed(seed_number):
         action = Action(position = np.array([1, 3, 1]), action = 1) 
         toric.step(action)#2
         return toric
+
+
 def seed(number):
     toric=in_seed(2)
     n=number
@@ -431,32 +497,21 @@ def seed(number):
         [toric.qubit_matrix,_]=apply_logical_horizontal(toric.qubit_matrix,1,3)
         [toric.qubit_matrix,_]=apply_logical_horizontal(toric.qubit_matrix,1,1)
         return toric
-'''       
-convergence_criteria=str(sys.argv[1])
-if convergence_criteria=='distr_based':
-    eps=10
-    n_tol=float(sys.argv[2])
-elif convergence_criteria=='error_based':
-    eps=float(sys.argv[2])
-    n_tol=10
 
-print("Convergence critera: " + convergence_criteria + ", eps: "+ str(eps) +", n_tol: " + str(n_tol))
-[tmp,_,_,_]=test_numeric_distribution_convergence(convergence_criteria,eps,n_tol,bool=True)
-print("Number of seed with same largest bin: " + str(tmp))   
-'''
 
 if __name__ == '__main__':
     try:
         array_id = str(sys.argv[1])
         local_dir = str(sys.argv[2])
-        timeout = int(sys.argv[3])
     except:
         array_id = '0'
         local_dir = '.'
-        timeout = 100000000000
-        print('invalid sysargs')
+    
+    #  Build file path
+    #file_path = os.path.join(local_dir, 'Nc_data_' + array_id + '.xz')
+    #Nc_tester(file_path=file_path, Nc_interval=[3, 31])
 
-    # Build file path
-    file_path = os.path.join(local_dir, 'Nc_data_' + array_id + '.xz')
+    file_path = os.path.join(local_dir, 'conv_data_' + array_id + '.xz')
+    convergence_analysis(file_path)
 
-    Nc_tester(file_path=file_path, Nc_interval=[3, 31])
+    #Nc_visuals(files = 6)
