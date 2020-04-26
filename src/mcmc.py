@@ -8,6 +8,7 @@ from .toric_model import Toric_code
 from .util import Action
 import pandas as pd
 
+
 rule_table = np.array(([[0, 1, 2, 3], [1, 0, 3, 2],
                         [2, 3, 0, 1], [3, 2, 1, 0]]), dtype=int)    # Identity = 0
                                                                     # pauli_x = 1
@@ -60,8 +61,8 @@ class MCMCDataReader:  # This is the object we crate to read a file during train
 
     def next(self):
         if self.__current_index < self.__capacity:
-            qubit_matrix = self.__df.loc[self.__current_index, 0:1, :, :].to_numpy(copy=True).reshape((2, self.__size, self.__size))
-            eq_distr = self.__df.loc[self.__current_index, 2:17, 0, 0].to_numpy(copy=True).reshape((-1))  # kanske inte behöver kopiera här?
+            qubit_matrix = self.__df.loc[self.__current_index].loc[0:1].to_numpy(copy=True).reshape((2, self.__size, self.__size))
+            eq_distr = self.__df.loc[self.__current_index].loc[2:17].to_numpy(copy=True).reshape((-1))  # kanske inte behöver kopiera här?
             self.__current_index += 1
             return qubit_matrix, eq_distr
         else:
