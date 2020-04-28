@@ -147,33 +147,7 @@ def Nc_visuals(files=6):
     plt.show()
 
 
-# Runs test_numeric_distribution_convergence for an array of different tolerences
-def compare_graphic(convergence_criteria='error_based',tolerences=[1.6,0.8,0.4,0.2,0.1,0.05],SEQs=[2,1,0]):
-    x = tolerences
-    y = np.zeros(len(tolerences))
-    y2 = np.zeros(len(tolerences))
-    for j in range(len(SEQs)):
-        for i in range(len(tolerences)):
-            [_,_,_,tmp,time_temp]=test_numeric_distribution_convergence(convergence_criteria,SEQs[j],x[i],x[i],False)
-            y[i]=tmp
-            y2[i]=time_temp*0.000001
-        
-        subplot_size=np.ceil(np.sqrt(2*len(SEQs)))
-        plt.subplot(subplot_size,subplot_size,2*j+1)
-        plt.title(convergence_criteria + "SEQ=" +str(SEQs[j])) 
-        plt.xlabel("tolerence") 
-        plt.ylabel("max diff") 
-        plt.plot(x,y) 
-
-        plt.subplot(subplot_size,subplot_size,2*j+2)
-        plt.title(convergence_criteria + "SEQ=" +str(SEQs[j])) 
-        plt.xlabel("tol.") 
-        plt.ylabel("# steps (e+5)") 
-        plt.plot(x,y2) 
-    plt.show()
-
-
-def convergence_analysis(file_path):
+def convergence_tester(file_path):
     size = 5
     p_error = 0.15
     Nc = 19
@@ -226,6 +200,236 @@ def convergence_analysis(file_path):
                 crits_stats = crits_stats.append(tmp_dict, ignore_index=True)
 
     crits_stats.to_pickle(file_path)
+
+
+def conv_test_visuals(files=50):
+    file_base = 'output/conv_data_'
+    stats = pd.DataFrame(columns=['SEQ', 'eps', 'kld', 'tvd', 'steps'])
+    for i in range(files):
+        df = pd.read_pickle(file_base + str(i) + '.xz')
+        stats = pd.concat([stats, df])
+
+    agg_stats = ['SEQ', 'eps', 'nbr_converged', 'kld_mean', 'kld_std', 'kld_geom_mean', 'kld_geom_std', 'tvd_mean', 'tvd_std', 'tvd_geom_mean', 'tvd_geom_std', 'steps_mean', 'steps_std', 'steps_geom_mean', 'steps_geom_std']
+
+    agg_data = pd.DataFrame(columns = agg_stats)
+
+    SEQ_values = np.unique(stats['SEQ'].to_numpy())
+    eps_values = np.unique(stats['eps'].to_numpy())
+
+    # Number of data points
+    tot_pts = stats.shape[0]
+    # Number of different SEQ values
+    SEQ_pts = SEQ_values.size
+    # Number of unique eps values
+    eps_pts = eps_values.size
+    # Number of samples per (SEQ, eps) pair
+    pop = int(tot_pts / (SEQ_pts * eps_pts))
+
+    def geom_mean(series):
+        array=series.to_numpy()
+        return np.exp(np.average(np.log(array)))
+
+    def geom_std(series):
+        array=series.to_numpy()
+        return np.exp(np.std(np.log(array)))
+
+    for SEQ in SEQ_values:
+        for eps in eps_values:
+            # Window of points for current (SEQ, eps) pair
+            window = stats[(stats['SEQ'] == SEQ) & (stats['eps'] == eps)]
+            # remove non converged runs
+            window = window[window['steps'] != -1]
+            # Mean and std values over converged runs
+            agg = window.agg(['mean', 'std', geom_mean, geom_std, 'max', 'min'])
+            # number of converged runs
+            nbr_converged = window.shape[0]
+            tmp_dict = {'SEQ': SEQ, 'eps': eps, 'nbr_converged': nbr_converged}
+            for name in ['kld', 'tvd', 'steps']:
+                for op in ['mean', 'std', 'geom_mean', 'geom_std', 'max', 'min']:
+                    tmp_dict[name + '_' + op] = agg.loc[op][name]
+
+            agg_data = agg_data.append(tmp_dict, ignore_index=True)
+        
+    plot_rows = int(np.ceil(np.sqrt(SEQ_pts)))
+    plot_cols = int(np.ceil(SEQ_pts / plot_rows))
+    
+    #fig, axs = plt.subplots(plot_rows, plot_cols, constrained_layout=True)
+    fig, host = plt.subplots(plot_rows, plot_cols)
+
+    for i, SEQ in enumerate(SEQ_values):
+
+        window = agg_data[agg_data['SEQ'] == SEQ]
+
+        nbr_converged = window['nbr_converged']
+        epss = window['eps']
+
+        mean = 'arit'
+        if mean == 'arit':
+            klds = window['kld_mean']
+            tvds = window['tvd_mean']
+            kld_stds = window['kld_std']
+            tvd_stds = window['tvd_std']
+            steps = window['steps_mean']
+            yerr = tvd_stds
+            scale = 'linear'
+        elif mean == 'geom':
+            klds = window['kld_geom_mean']
+            tvds = window['tvd_geom_mean']
+            kld_stds = window['kld_geom_std']
+            tvd_stds = window['tvd_geom_std']
+            steps = window['steps_geom_mean']
+            yerr = [tvds * (1 - 1/tvd_stds), klds * (tvd_stds - 1)]
+            scale = 'log'
+        
+        tvd_min = window['tvd_min']
+        tvd_max = window['tvd_max']
+
+        row = i // plot_cols
+        col = i % plot_cols
+
+        ax = host[row][col]
+        ax.set_zorder(2)
+        ax.patch.set_visible(False)
+
+        #ax.errorbar(epss, tvds, yerr=yerr, label='Distance')
+        ax.plot(epss, tvds, label='Mean distance')
+        #ax.plot(epss, tvd_min, label='Min distance')
+        #ax.plot(epss, tvd_max, label='Max distance')
+
+        ax.set_title('SEQ: ' + str(SEQ))
+        ax.set_xlabel('eps')
+        ax.set_ylabel('Distance')
+        ax.legend(loc='upper left')
+        #ax.set_yscale('log')
+        ax.set_ylim(0, 0.03)
+        #ax.set_yscale(scale)
+        ax.set_xlim(min(epss) * 0.7, max(epss) * 1.05)
+
+        par = ax.twinx()
+        #par.bar(epss.to_numpy(), nbr_converged.to_numpy(), width=8e-4, color='gray', alpha=0.5, label='Converged samples')
+        par.bar(epss.to_numpy(), steps.to_numpy(), width=8e-4, color='gray', alpha=0.5, label='Converged samples')
+        par.set_ylabel('Convergence step')
+        #par.legend(loc='upper right')
+        par.set_ylim(0, 500000)
+            
+    #fig.suptitle('Kullback-Leibler distance from converged distribution')
+    fig.suptitle('Total variational distance from converged distribution')
+
+    ax = host[2][1]
+    SEQ = 25
+    eps = 0.008
+    window = stats[(stats['SEQ'] == SEQ) & (stats['eps'] == eps)]
+    window = window[window['steps'] != -1]
+    #window = stats[stats['steps'] != -1]
+    y = window['tvd'].sort_values()
+    y = np.log(y)
+    ax.hist(y, bins=25, density=True, range=(-6, -2))
+    #ax.scatter(np.arange(window.shape[0]), y)
+    #ax.axhline(y.mean())
+
+    SEQ = 35
+    eps = 0.002
+    window = stats[(stats['SEQ'] == SEQ) & (stats['eps'] == eps)]
+    window = window[window['steps'] != -1]
+    #window = stats[stats['steps'] != -1]
+    y = window['tvd'].sort_values()
+    y = np.log(y)
+    ax.hist(y, bins=25, density=True, alpha=0.5, range=(-6, -2))
+    #ax.scatter(np.arange(window.shape[0]), y)
+    #ax.axhline(y.mean())
+
+    #ax.set_yscale('log')
+    #ax.set_ylim(2e-3, 5e-1)
+
+    plt.show()
+
+
+def conv_stats(file_path, p_error):
+    size = 5
+    Nc = 19
+    TOPS = 20
+    SEQ = 30
+    tops_burn = 10
+    steps = 1000000
+    eps = 0.006
+
+    # Number of times every parameter configuration is tested
+    pop = 1
+
+    file_path = file_path.format(SEQ, eps).replace('0.', '0')
+
+    #criteria = ['error_based', 'distr_based', 'majority_based', 'tvd_based', 'kld_based']
+    criteria = ['error_based']
+    crit = 'error_based'
+
+    def tvd(a, b):
+        nonzero = np.logical_and(a != 0, b != 0)
+        if np.any(nonzero):
+            return np.amax(np.absolute(a - b))
+        else:
+            return -1
+
+    def kld(a, b):
+        nonzero = np.logical_and(a != 0, b != 0)
+        if np.any(nonzero):
+            log = np.log2(np.divide(a, b, where=nonzero), where=nonzero)
+            return np.sum((a - b) * log, where=nonzero)
+        else:
+            return -1
+
+    #crits_stats = {crit: [[], [], [], [], []] for crit in criteria}
+    crits_stats = pd.DataFrame(columns=['kld', 'tvd', 'steps', 'success', 'distr'])
+
+    for j in range(pop):
+        init_toric = Toric_code(size)
+        init_toric.generate_random_error(p_error)
+
+        seed_class = define_equivalence_class(init_toric.qubit_matrix)
+
+        [distr, eq, eq_full, chain0, burn_in, crits_distr] = parallel_tempering_analysis(init_toric, Nc, p=p_error, TOPS=TOPS, SEQ=SEQ, tops_burn=tops_burn, steps=steps, conv_criteria=criteria, eps=eps)
+
+        distr = np.divide(distr.astype(np.float), 100)
+
+        distr_conv = crits_distr[crit][0]
+        tvd_crit = tvd(distr, distr_conv)
+        kld_crit = kld(distr, distr_conv)
+        
+        # seed is succesfully corrected if most likely class is the same as the seed class
+        success = (np.argmax(distr_conv) == seed_class)
+
+        tmp_dict = {'kld': kld_crit, 'tvd': tvd_crit, 'steps': crits_distr[crit][1], 'success': success, 'distr': distr_conv}
+        crits_stats = crits_stats.append(tmp_dict, ignore_index=True)
+
+        if not j % 10:
+            crits_stats.to_pickle(file_path)
+
+    crits_stats.to_pickle(file_path)
+
+
+# Runs test_numeric_distribution_convergence for an array of different tolerences
+def compare_graphic(convergence_criteria='error_based',tolerences=[1.6,0.8,0.4,0.2,0.1,0.05],SEQs=[2,1,0]):
+    x = tolerences
+    y = np.zeros(len(tolerences))
+    y2 = np.zeros(len(tolerences))
+    for j in range(len(SEQs)):
+        for i in range(len(tolerences)):
+            [_,_,_,tmp,time_temp]=test_numeric_distribution_convergence(convergence_criteria,SEQs[j],x[i],x[i],False)
+            y[i]=tmp
+            y2[i]=time_temp*0.000001
+        
+        subplot_size=np.ceil(np.sqrt(2*len(SEQs)))
+        plt.subplot(subplot_size,subplot_size,2*j+1)
+        plt.title(convergence_criteria + "SEQ=" +str(SEQs[j])) 
+        plt.xlabel("tolerence") 
+        plt.ylabel("max diff") 
+        plt.plot(x,y) 
+
+        plt.subplot(subplot_size,subplot_size,2*j+2)
+        plt.title(convergence_criteria + "SEQ=" +str(SEQs[j])) 
+        plt.xlabel("tol.") 
+        plt.ylabel("# steps (e+5)") 
+        plt.plot(x,y2) 
+    plt.show()
 
 
 # Returns an array [nmbr_1st,nmbr_2nd,nmbr_3rd,max_1], and saves the same data in .txt files
@@ -503,15 +707,22 @@ if __name__ == '__main__':
     try:
         array_id = str(sys.argv[1])
         local_dir = str(sys.argv[2])
+        p_error = float(sys.argv[3])
     except:
         array_id = '0'
         local_dir = '.'
+        p_error = 0.1
     
     #  Build file path
     #file_path = os.path.join(local_dir, 'Nc_data_' + array_id + '.xz')
     #Nc_tester(file_path=file_path, Nc_interval=[3, 31])
 
     #file_path = os.path.join(local_dir, 'conv_data_' + array_id + '.xz')
-    #convergence_analysis(file_path)
+    #convergence_test(file_path)
 
-    Nc_visuals(files = 6)
+    #file_path = os.path.join(local_dir, 'conv_stats_p' + str(p_error).replace('.', '') + '_' + array_id + '.xz')
+    file_path = os.path.join(local_dir, 'conv_stats_SEQ{}_eps{:.3f}_' + 'p{:.3f}_{}.xz'.format(p_error, array_id))
+    conv_stats(file_path, p_error)
+
+    #Nc_visuals(files = 6)
+    #conv_test_visuals()
