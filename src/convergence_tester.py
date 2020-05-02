@@ -406,6 +406,44 @@ def conv_stats(file_path, p_error):
     crits_stats.to_pickle(file_path)
 
 
+def conv_stats_visuals(files=50, SEQ=30, eps=0.006, p=0.1):
+    file_base = 'output/conv_stats_' + 'SEQ{}_eps{:.3f}_p{:.3f}_'.format(SEQ, eps, p)
+    stats = pd.DataFrame(columns=['kld', 'tvd', 'steps', 'success', 'distr'])
+    for i in range(files):
+        filename = (file_base + str(i) + '.xz').replace('0.', '0')
+        df = pd.read_pickle(filename)
+        stats = pd.concat([stats, df])
+
+    def geom_mean(series):
+        array=series.to_numpy()
+        return np.exp(np.average(np.log(array)))
+
+    def geom_std(series):
+        array=series.to_numpy()
+        return np.exp(np.std(np.log(array)))
+
+    # remove non converged runs
+    converged = stats[stats['steps'] != -1]
+    
+    y = converged['tvd']
+    #y = y[y > 0]
+    print(converged[y <= 0])
+    #y = np.log(y)
+    plt.hist(y, bins=500, density=True, range=(0, 0.05))
+    plt.show()
+
+    success_rate = stats['success'].mean()
+    distrs = converged['distr'].to_numpy()
+    p_max_mean = np.mean([np.max(distr) for distr in distrs])
+    nbr_converged = converged.shape[0]
+    tot_pts = stats.shape[0]
+
+    print('Success rate:', success_rate)
+    print('Mean of p_max:', p_max_mean)
+    print('Total runs:', tot_pts)
+    print('Converged runs:', nbr_converged)
+
+
 # Runs test_numeric_distribution_convergence for an array of different tolerences
 def compare_graphic(convergence_criteria='error_based',tolerences=[1.6,0.8,0.4,0.2,0.1,0.05],SEQs=[2,1,0]):
     x = tolerences
@@ -721,8 +759,9 @@ if __name__ == '__main__':
     #convergence_test(file_path)
 
     #file_path = os.path.join(local_dir, 'conv_stats_p' + str(p_error).replace('.', '') + '_' + array_id + '.xz')
-    file_path = os.path.join(local_dir, 'conv_stats_SEQ{}_eps{:.3f}_' + 'p{:.3f}_{}.xz'.format(p_error, array_id))
-    conv_stats(file_path, p_error)
+    #file_path = os.path.join(local_dir, 'conv_stats_SEQ{}_eps{:.3f}_' + 'p{:.3f}_{}.xz'.format(p_error, array_id))
+    #conv_stats(file_path, p_error)
+    conv_stats_visuals()
 
     #Nc_visuals(files = 6)
     #conv_test_visuals()

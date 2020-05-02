@@ -69,14 +69,14 @@ def main3(): # P_s som funktion av p
 
     init_toric.qubit_matrix = np.array([[[0, 0, 0, 0, 0],
                                          [0, 0, 0, 0, 0],
-                                         [1, 0, 0, 0, 1],
-                                         [0, 0, 0, 0, 0],
+                                         [0, 1, 2, 1, 0],
+                                         [0, 0, 3, 0, 0],
                                          [0, 0, 0, 0, 0]],
-                                        [[0, 0, 1, 0, 0],
-                                         [0, 0, 0, 0, 0],
-                                         [0, 0, 0, 0, 0],
-                                         [0, 0, 0, 0, 0],
-                                         [0, 0, 1, 0, 0]]])
+                                        [[0, 0, 0, 0, 0],
+                                         [0, 0, 1, 0, 0],
+                                         [0, 0, 2, 0, 0],
+                                         [0, 0, 1, 0, 0],
+                                         [0, 0, 0, 0, 0]]])
 
     #init_toric.generate_n_random_errors(9)
 
@@ -89,7 +89,7 @@ def main3(): # P_s som funktion av p
     t1 = time.time()
 
     startingqubit = init_toric.qubit_matrix
-
+    print(define_equivalence_class(startingqubit))
     data = []
 
     for i in range(points):
