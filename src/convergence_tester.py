@@ -14,6 +14,33 @@ from .mcmc import *
 from .toric_model import Toric_code
 
 
+def geom_mean(series):
+    array=series.to_numpy()
+    return np.exp(np.average(np.log(array)))
+
+
+def geom_std(series):
+    array=series.to_numpy()
+    return np.exp(np.std(np.log(array)))
+
+
+def tvd(a, b):
+    nonzero = np.logical_and(a != 0, b != 0)
+    if np.any(nonzero):
+        return np.amax(np.absolute(a - b))
+    else:
+        return -1
+
+
+def kld(a, b):
+    nonzero = np.logical_and(a != 0, b != 0)
+    if np.any(nonzero):
+        log = np.log2(np.divide(a, b, where=nonzero), where=nonzero)
+        return np.sum((a - b) * log, where=nonzero)
+    else:
+        return -1
+
+
 def Nc_tester(file_path, Nc_interval=[3,31]):
     size = 5
     p_error = 0.15
@@ -73,14 +100,6 @@ def Nc_visuals(files=6):
     Nc_pts = Nc_values.size
     # Number of samples per (SEQ, tol) pair
     pop = int(tot_pts / Nc_pts)
-
-    def geom_mean(series):
-        array=series.to_numpy()
-        return np.exp(np.average(np.log(array)))
-
-    def geom_std(series):
-        array=series.to_numpy()
-        return np.exp(np.std(np.log(array)))
 
     for Nc in Nc_values:
         # Window of points for current Nc value
@@ -166,21 +185,6 @@ def convergence_tester(file_path):
 
     eps_list = [2e-3*i for i in range(1, 6)]
 
-    def tvd(a, b):
-        nonzero = np.logical_and(a != 0, b != 0)
-        if np.any(nonzero):
-            return np.amax(np.absolute(a - b))
-        else:
-            return -1
-
-    def kld(a, b):
-        nonzero = np.logical_and(a != 0, b != 0)
-        if np.any(nonzero):
-            log = np.log2(np.divide(a, b, where=nonzero), where=nonzero)
-            return np.sum((a - b) * log, where=nonzero)
-        else:
-            return -1
-
     #crits_stats = {crit: [[], [], [], [], []] for crit in criteria}
     crits_stats = pd.DataFrame(columns=['SEQ', 'eps', 'kld', 'tvd', 'steps'])
 
@@ -224,14 +228,6 @@ def conv_test_visuals(files=50):
     eps_pts = eps_values.size
     # Number of samples per (SEQ, eps) pair
     pop = int(tot_pts / (SEQ_pts * eps_pts))
-
-    def geom_mean(series):
-        array=series.to_numpy()
-        return np.exp(np.average(np.log(array)))
-
-    def geom_std(series):
-        array=series.to_numpy()
-        return np.exp(np.std(np.log(array)))
 
     for SEQ in SEQ_values:
         for eps in eps_values:
@@ -344,38 +340,21 @@ def conv_test_visuals(files=50):
     plt.show()
 
 
-def conv_stats(file_path, p_error):
+def conv_stats(file_path, p_error, SEQ=30, eps=0.006):
     size = 5
     Nc = 19
     TOPS = 20
-    SEQ = 30
     tops_burn = 10
     steps = 1000000
-    eps = 0.006
 
     # Number of times every parameter configuration is tested
-    pop = 1
+    pop = 200
 
-    file_path = file_path.format(SEQ, eps).replace('0.', '0')
+    file_path = file_path.format(SEQ, eps).replace('0.', '0') + '.xz'
 
     #criteria = ['error_based', 'distr_based', 'majority_based', 'tvd_based', 'kld_based']
     criteria = ['error_based']
     crit = 'error_based'
-
-    def tvd(a, b):
-        nonzero = np.logical_and(a != 0, b != 0)
-        if np.any(nonzero):
-            return np.amax(np.absolute(a - b))
-        else:
-            return -1
-
-    def kld(a, b):
-        nonzero = np.logical_and(a != 0, b != 0)
-        if np.any(nonzero):
-            log = np.log2(np.divide(a, b, where=nonzero), where=nonzero)
-            return np.sum((a - b) * log, where=nonzero)
-        else:
-            return -1
 
     #crits_stats = {crit: [[], [], [], [], []] for crit in criteria}
     crits_stats = pd.DataFrame(columns=['kld', 'tvd', 'steps', 'success', 'distr'])
@@ -410,17 +389,9 @@ def conv_stats_visuals(files=50, SEQ=30, eps=0.006, p=0.1):
     file_base = 'output/conv_stats_' + 'SEQ{}_eps{:.3f}_p{:.3f}_'.format(SEQ, eps, p)
     stats = pd.DataFrame(columns=['kld', 'tvd', 'steps', 'success', 'distr'])
     for i in range(files):
-        filename = (file_base + str(i) + '.xz').replace('0.', '0')
+        filename = (file_base + str(i)).replace('0.', '0')  + '.xz'
         df = pd.read_pickle(filename)
         stats = pd.concat([stats, df])
-
-    def geom_mean(series):
-        array=series.to_numpy()
-        return np.exp(np.average(np.log(array)))
-
-    def geom_std(series):
-        array=series.to_numpy()
-        return np.exp(np.std(np.log(array)))
 
     # remove non converged runs
     converged = stats[stats['steps'] != -1]
@@ -759,9 +730,9 @@ if __name__ == '__main__':
     #convergence_test(file_path)
 
     #file_path = os.path.join(local_dir, 'conv_stats_p' + str(p_error).replace('.', '') + '_' + array_id + '.xz')
-    #file_path = os.path.join(local_dir, 'conv_stats_SEQ{}_eps{:.3f}_' + 'p{:.3f}_{}.xz'.format(p_error, array_id))
-    #conv_stats(file_path, p_error)
-    conv_stats_visuals()
+    file_path = os.path.join(local_dir, 'conv_stats_SEQ{}_eps{:.3f}_' + 'p{:.3f}_{}'.format(p_error, array_id))
+    conv_stats(file_path, p_error)
+    #conv_stats_visuals()
 
     #Nc_visuals(files = 6)
     #conv_test_visuals()
