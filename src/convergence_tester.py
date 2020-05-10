@@ -81,7 +81,8 @@ def Nc_tester(file_path, Nc_interval=[3,31]):
 
 
 def Nc_visuals(files=6):
-    file_base = 'output/Nc_data_'
+    SEQ = 20
+    file_base = 'output/Nc_data_SEQ{}_'.format(SEQ)
 
     stats = pd.DataFrame(columns=['Nc', 'time', 'steps'])
     for i in range(files):
@@ -121,7 +122,29 @@ def Nc_visuals(files=6):
         # append aggregate data for current Nc value to agg_data
         agg_data = agg_data.append(tmp_dict, ignore_index=True)
     
-    
+    #stats.boxplot(column='time', by='Nc', return_type='both')
+
+    time = agg_data['time_mean'].to_numpy()
+    time_err = agg_data['time_std']
+
+    plt.rcParams.update({'font.size': 48, 'figure.subplot.top': 0.9, 'figure.subplot.bottom': 0.15, 'figure.subplot.right':0.98})
+    plt.rc('axes', labelsize=60)#, titlesize=40) 
+
+    fig = plt.figure()
+    ax = fig.add_subplot(111)
+    ax.errorbar(Nc_values, time, yerr=time_err, fmt='o--', ms=24, lw=8, capsize=16, capthick=8)#, label='Convergence time')
+
+    ax.set_xlabel('Nc')
+    ax.set_ylabel('Konvergenstid [s]')
+    ax.set_ylim([-25, 170])
+    ax.set_xlim([2, 32])
+    ax.set_title('SEQ = {}'.format(SEQ))
+    #ax.legend(loc='upper right')
+    #plt.savefig('plots/Nc_data_SEQ{}.png'.format(SEQ))
+    plt.show()
+
+
+    '''
     fig, host = plt.subplots(2)
 
     ax = host[0]
@@ -163,7 +186,7 @@ def Nc_visuals(files=6):
     
     #fig.suptitle('Kullback-Leibler distance from converged distribution')
     #fig.suptitle('Convergence steps and time as a function of Nc')
-    plt.show()
+    '''
 
 
 def convergence_tester(file_path):
@@ -246,97 +269,86 @@ def conv_test_visuals(files=50):
 
             agg_data = agg_data.append(tmp_dict, ignore_index=True)
         
-    plot_rows = int(np.ceil(np.sqrt(SEQ_pts)))
-    plot_cols = int(np.ceil(SEQ_pts / plot_rows))
-    
+    plot_cols = int(np.ceil(np.sqrt(SEQ_pts)))
+    plot_rows = int(np.ceil(SEQ_pts / plot_cols))
+
     #fig, axs = plt.subplots(plot_rows, plot_cols, constrained_layout=True)
-    fig, host = plt.subplots(plot_rows, plot_cols)
+    #fig, host = plt.subplots(plot_rows, plot_cols)
+    fig = plt.figure()
+
+    #locs = [(0, 0), (0, 2), (0, 4), (1, 1), (1, 3)]
+    #host = [plt.subplot2grid((plot_rows, plot_cols * 2), loc, colspan = 2) for loc in locs]
+
+    ax = fig.add_subplot(111)
+
+    #params = {'font.size': 48, 'axes.labelsize': 36, 'axes.titlesize': 36, 'xtick.labelsize': 36, 'ytick.labelsize': 36}
+
+    #plt.rcParams.update({'image.cmap': 'cubehelix'})
+
+    big_font = 56
+    mid_font = 44
+    small_font = 32
+
+    linestyles = ['-', '--', '-.', (0, (3, 1, 3, 1, 1, 1)), (0, (2, 1))]
+    color=iter(plt.cm.cubehelix(np.linspace(0, 1, SEQ_values.size + 1)))
 
     for i, SEQ in enumerate(SEQ_values):
+        c = next(color)
 
         window = agg_data[agg_data['SEQ'] == SEQ]
 
         nbr_converged = window['nbr_converged']
         epss = window['eps']
-
-        mean = 'arit'
-        if mean == 'arit':
-            klds = window['kld_mean']
-            tvds = window['tvd_mean']
-            kld_stds = window['kld_std']
-            tvd_stds = window['tvd_std']
-            steps = window['steps_mean']
-            yerr = tvd_stds
-            scale = 'linear'
-        elif mean == 'geom':
-            klds = window['kld_geom_mean']
-            tvds = window['tvd_geom_mean']
-            kld_stds = window['kld_geom_std']
-            tvd_stds = window['tvd_geom_std']
-            steps = window['steps_geom_mean']
-            yerr = [tvds * (1 - 1/tvd_stds), klds * (tvd_stds - 1)]
-            scale = 'log'
         
+        tvds = window['tvd_mean']
+        tvd_stds = window['tvd_std']
+
         tvd_min = window['tvd_min']
         tvd_max = window['tvd_max']
 
-        row = i // plot_cols
-        col = i % plot_cols
+        #row = i // plot_cols
+        #col = i % plot_cols
+        #ax = host[row][col]
+        #ax.set_zorder(2)
+        #ax.patch.set_visible(False)
 
-        ax = host[row][col]
-        ax.set_zorder(2)
-        ax.patch.set_visible(False)
-
-        #ax.errorbar(epss, tvds, yerr=yerr, label='Distance')
-        ax.plot(epss, tvds, label='Mean distance')
+        #ax = host[i]
+        ls = linestyles[i]
+        #ax.errorbar(epss, tvds, yerr=tvd_stds, label='Distance')
+        ax.plot(epss, tvds, label='SEQ = {}'.format(SEQ), lw = 8, ls = ls, c = c)
         #ax.plot(epss, tvd_min, label='Min distance')
         #ax.plot(epss, tvd_max, label='Max distance')
 
-        ax.set_title('SEQ: ' + str(SEQ))
-        ax.set_xlabel('eps')
-        ax.set_ylabel('Distance')
-        ax.legend(loc='upper left')
+    if True:
+        plt.rcParams.update({'figure.subplot.top': 0.95, 'figure.subplot.bottom': 0.15, 'figure.subplot.right': 0.92, 'figure.subplot.left': 0.08})
+        #ax.set_title('SEQ: ' + str(SEQ), fontsize = title_fontsize)
+        ax.set_xlabel('eps', fontsize=mid_font)
+        ax.set_ylabel('Distance', fontsize=mid_font)
+        #ax.legend(loc='upper left')
         #ax.set_yscale('log')
-        ax.set_ylim(0, 0.03)
+        ax.set_ylim(0.01, 0.025)
         #ax.set_yscale(scale)
-        ax.set_xlim(min(epss) * 0.7, max(epss) * 1.05)
+        #ax.set_xlim(min(epss) * 0.7, max(epss) * 1.05)
+        ax.tick_params(axis='both', which='major', labelsize=small_font)
+        ax.ticklabel_format(style='sci', axis='y', scilimits=(-2, -2))
+        ax.ticklabel_format(style='sci', axis='x', scilimits=(-3, -3))
+        ax.yaxis.offsetText.set_fontsize(small_font)
+        ax.xaxis.offsetText.set_fontsize(small_font)
 
+        '''
         par = ax.twinx()
         #par.bar(epss.to_numpy(), nbr_converged.to_numpy(), width=8e-4, color='gray', alpha=0.5, label='Converged samples')
         par.bar(epss.to_numpy(), steps.to_numpy(), width=8e-4, color='gray', alpha=0.5, label='Converged samples')
         par.set_ylabel('Convergence step')
         #par.legend(loc='upper right')
         par.set_ylim(0, 500000)
-            
+        '''
+    
+    ax.legend(loc='upper left', fontsize=small_font, handlelength=2.5)
     #fig.suptitle('Kullback-Leibler distance from converged distribution')
-    fig.suptitle('Total variational distance from converged distribution')
-
-    ax = host[2][1]
-    SEQ = 25
-    eps = 0.008
-    window = stats[(stats['SEQ'] == SEQ) & (stats['eps'] == eps)]
-    window = window[window['steps'] != -1]
-    #window = stats[stats['steps'] != -1]
-    y = window['tvd'].sort_values()
-    y = np.log(y)
-    ax.hist(y, bins=25, density=True, range=(-6, -2))
-    #ax.scatter(np.arange(window.shape[0]), y)
-    #ax.axhline(y.mean())
-
-    SEQ = 35
-    eps = 0.002
-    window = stats[(stats['SEQ'] == SEQ) & (stats['eps'] == eps)]
-    window = window[window['steps'] != -1]
-    #window = stats[stats['steps'] != -1]
-    y = window['tvd'].sort_values()
-    y = np.log(y)
-    ax.hist(y, bins=25, density=True, alpha=0.5, range=(-6, -2))
-    #ax.scatter(np.arange(window.shape[0]), y)
-    #ax.axhline(y.mean())
-
-    #ax.set_yscale('log')
-    #ax.set_ylim(2e-3, 5e-1)
-
+    #fig.suptitle('Total variational distance from converged distribution')
+    #plt.tight_layout(pad=0.4, w_pad=0.5, h_pad=1.0)
+    #plt.set_cmap('hot') 
     plt.show()
 
 
@@ -397,22 +409,44 @@ def conv_stats_visuals(files=50, SEQ=30, eps=0.006, p=0.1):
     converged = stats[stats['steps'] != -1]
     
     y = converged['tvd']
-    #y = y[y > 0]
-    print(converged[y <= 0])
-    #y = np.log(y)
-    plt.hist(y, bins=500, density=True, range=(0, 0.05))
-    plt.show()
 
-    success_rate = stats['success'].mean()
+    y = y[y != 0]
+    #y = y[y > 0]
+    #y = np.log(y)
+    #print(y[(y > 0.0099) & (y < 0.01)])
+
+    converged = converged[converged['tvd'] != 0]
+    success_rate = converged['success'].mean()
     distrs = converged['distr'].to_numpy()
     p_max_mean = np.mean([np.max(distr) for distr in distrs])
     nbr_converged = converged.shape[0]
     tot_pts = stats.shape[0]
 
+    perc95 = np.percentile(y, 95)
+    print('95th percentile:', perc95)
     print('Success rate:', success_rate)
     print('Mean of p_max:', p_max_mean)
     print('Total runs:', tot_pts)
     print('Converged runs:', nbr_converged)
+
+    small_font = 36
+    mid_font = 48
+
+    plt.rcParams.update({'figure.subplot.top': 0.95, 'figure.subplot.bottom': 0.15, 'figure.subplot.right': 0.9, 'figure.subplot.left': 0.1})
+
+    fig = plt.figure()
+    ax = fig.add_subplot(111)
+    ax.hist(y, bins=100, density=True, range=(0, 0.08))
+    ax.axvline(x = perc95, ls='--', lw=8, c='k', label=('$P_{95}$ = ' + '{:.3f}'.format(perc95)))
+    
+    ax.set_xlabel('Distance', fontsize = mid_font)
+    ax.set_ylabel('Counts', fontsize = mid_font)
+    ax.tick_params(axis='both', which='major', labelsize=small_font)
+    ax.ticklabel_format(style='sci', axis='x', scilimits=(-2, -2))
+    ax.xaxis.offsetText.set_fontsize(small_font)
+    ax.legend(loc = 'upper right', fontsize = mid_font)
+
+    plt.show()
 
 
 # Runs test_numeric_distribution_convergence for an array of different tolerences
@@ -730,9 +764,9 @@ if __name__ == '__main__':
     #convergence_test(file_path)
 
     #file_path = os.path.join(local_dir, 'conv_stats_p' + str(p_error).replace('.', '') + '_' + array_id + '.xz')
-    file_path = os.path.join(local_dir, 'conv_stats_SEQ{}_eps{:.3f}_' + 'p{:.3f}_{}'.format(p_error, array_id))
-    conv_stats(file_path, p_error)
-    #conv_stats_visuals()
+    #file_path = os.path.join(local_dir, 'conv_stats_SEQ{}_eps{:.3f}_' + 'p{:.3f}_{}'.format(p_error, array_id))
+    #conv_stats(file_path, p_error)
+    conv_stats_visuals(p=0.1)
 
     #Nc_visuals(files = 6)
     #conv_test_visuals()

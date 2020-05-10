@@ -1,9 +1,0 @@
-Convergence criteria: error_based
- eps:0.05
- ntol: 0.05
- 
-Number of equivalent 1st: 16.0
-Number of equivalent 2nd: 13.0
-Number of equivalent 3rd: 11.0
-
-Max difference: 34.0

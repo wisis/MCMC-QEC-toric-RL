@@ -9,3 +9,5 @@ __pycache__/__init__.cpython-37.pyc
 df.csv
 test_hdf.py
 runs/
+output/
+data_error_based*

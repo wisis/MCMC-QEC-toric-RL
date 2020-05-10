@@ -36,7 +36,7 @@ def convergence_tester():
 
 
 def main3(): # P_s som funktion av p
-    points = 20
+    points = 25
     size = 5
     init_toric = Toric_code(size)
     Nc = 19
@@ -44,7 +44,7 @@ def main3(): # P_s som funktion av p
     SEQ=30
     tops_burn=10
     eps=0.008
-    steps=1000000
+    steps=2000000
     p_error = [i*0.01 + 0.05 for i in range(points)]
 
     # define error
@@ -81,8 +81,6 @@ def main3(): # P_s som funktion av p
     #init_toric.generate_n_random_errors(9)
 
     init_toric.syndrom('next_state')
-    
-
 
     # plot initial error configuration
     init_toric.plot_toric_code(init_toric.next_state, 'Chain_init')
@@ -95,21 +93,26 @@ def main3(): # P_s som funktion av p
     for i in range(points):
         #init_toric.qubit_matrix, _ = apply_random_logical(startingqubit)
 
-        distr = parallel_tempering(init_toric, Nc=Nc, p=p_error[i], steps=steps, SEQ=SEQ, TOPS=TOPS, tops_burn=tops_burn, eps=eps, conv_criteria='error_based')
+        distr = parallel_tempering(copy.deepcopy(init_toric), Nc=Nc, p=p_error[i], steps=steps, SEQ=SEQ, TOPS=TOPS, tops_burn=tops_burn, eps=eps, conv_criteria=None)
         #print("error #" + str(i) + ': ', eq_class_count_BC/np.sum(eq_class_count_BC))
         distr_i = np.divide(distr, np.sum(distr), dtype=np.float)
         data.append(distr_i)
         print(p_error[i], distr_i)
     
+    data_dict = {'p_error': p_error}
     data = np.asarray(data)
     print(data[:,0])
     for i in range(16):
-        plt.plot(p_error, data[:,i], label=('eq_class_' + str(i+1)))
+        plt.plot(p_error, data[:, i], label=('eq_class_' + str(i)))
+        data_dict['eq_class_' + str(i)] = data[:, i]
+    df = pd.DataFrame(data_dict)
+    df.to_pickle('pathological_convergence.xz')
     plt.xlabel('Error rate, p')
     plt.ylabel('Probability of equivalance class')
     plt.title('init: k3')
     plt.legend(loc=1)
 
+    plt.savefig('pathological_convergence.png')
     plt.show()
         
     print("runtime: ", time.time()-t1)
@@ -158,12 +161,12 @@ def eq_evolution():
 def convergence_analysis():
     size = 5
     init_toric = Toric_code(size)
-    p_error = 0.185
+    p_error = 0.15
     Nc = 19
     TOPS=20
     SEQ=30
     tops_burn=10
-    eps=0.008
+    eps=0.006
     n_tol=1e-4
     steps=1000000
 
@@ -177,7 +180,7 @@ def convergence_analysis():
     init_toric.qubit_matrix = np.array([[[0, 0, 0, 0, 0],
                                          [0, 0, 0, 0, 0],
                                          [0, 1, 2, 1, 0],
-                                         [0, 0, 0, 0, 0],
+                                         [0, 0, 3, 0, 0],
                                          [0, 0, 0, 0, 0]],
                                         [[0, 0, 0, 0, 0],
                                          [0, 0, 1, 0, 0],
@@ -197,9 +200,16 @@ def convergence_analysis():
 
     init_toric.qubit_matrix, _ = apply_random_logical(init_toric.qubit_matrix)
 
-    [distr, eq, eq_full, chain0, burn_in, crits_distr] = parallel_tempering_analysis(init_toric, Nc, p=p_error, TOPS=TOPS, SEQ=SEQ, tops_burn=tops_burn, eps=eps, n_tol=n_tol, steps=steps, conv_criteria=criteria)
+    [distr, eq, eq_full, chain0, burn_in, crits_distr] = parallel_tempering_analysis(init_toric, Nc, p=p_error, TOPS=TOPS, SEQ=SEQ, tops_burn=tops_burn, eps=eps, steps=steps, conv_criteria=criteria)
 
     mean_history = np.array([eq[x] / (x + 1) for x in range(steps)])
+
+    step = crits_distr['error_based'][1] * np.ones(steps)
+
+    print(step.shape, mean_history.shape)
+
+    df = pd.DataFrame({'mean_history': list(mean_history), 'conv_step': step})
+    df.to_pickle('conv_data_2.xz')
 
     for i in range(16):
         plt.plot(mean_history[: , i], label=i)
@@ -209,9 +219,53 @@ def convergence_analysis():
         print(crit)
         print('convergence step: ', crits_distr[crit][1])
         print('converged distribution: ', crits_distr[crit][0])
-        #plt.axvline(x=crits_distr[crit][1], label=crit)
+        plt.axvline(x=crits_distr[crit][1], label=crit)
 
     plt.legend(loc=1)
+    plt.show()
+
+
+def plot_convergence():
+    df = pd.read_pickle('conv_data_2.xz')
+    mean_history = np.array([item for item in df['mean_history'].to_numpy()])
+    conv_step = df['conv_step'][0]
+    #print(mean_history[1,:])
+    #print('Meanhistory shape: '+ str(np.shape(mean_history)))
+
+    fig, ax = plt.subplots()
+
+    last_step = np.where(mean_history.max(axis = 1) == 0)[0][0]
+
+    lines = []
+    color = iter(plt.cm.cubehelix(np.linspace(0.2, 0.7, 6)))
+
+    for i in range(16):
+        prob = mean_history[:last_step, i]
+        if prob[-1] > 0.005:
+            c = next(color)
+            lines += ax.plot(prob, c = c, lw = 5, label = i)
+
+    big_size = 36
+    mid_size = 26
+
+    #ax.legend(handles = lines, loc = 'upper right', fontsize= 14, ncol = 2, title = 'Ekvivalensklasser', title_fontsize = 25)
+    
+    leg = plt.legend(handles = lines, loc = 'upper right', fontsize = mid_size, ncol = 2, title = 'Ekvivalensklasser', title_fontsize = big_size)
+    ax.add_artist(leg)
+
+    #c = next(color)
+    conv_line = ax.axvline(x = conv_step, ls = '--', c = 'k', lw = 5)
+    #conv_line.label = 'Felkriteriet'
+
+    ax.legend([conv_line], ['Steg nr {:.0f}'.format(conv_step)], loc = 'upper right', bbox_to_anchor = (0.682, 1), handlelength = 3,  fontsize = mid_size, title = 'Felkriteriet', title_fontsize = big_size)
+    
+    ax.set_xlim(0, 1e6)
+    ax.set_ylim(0, 1)
+    ax.set_xlabel('Steg', fontsize = big_size)
+    ax.set_ylabel('Sannolikhet', fontsize = big_size)
+    ax.tick_params(axis = 'x', labelsize = mid_size) 
+    ax.tick_params(axis = 'y', labelsize = mid_size) 
+    print('Convergence of error_based at ' + str(conv_step) + ' steps.')
     plt.show()
 
 
@@ -219,4 +273,5 @@ if __name__ == '__main__':
     #convergence_tester()
     #eq_evolution()
     #convergence_analysis()
-    main3()
+    #main3()
+    plot_convergence()
