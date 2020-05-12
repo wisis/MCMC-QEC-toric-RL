@@ -6,6 +6,11 @@ import pandas as pd
 import time
 import matplotlib.pyplot as plt
 
+from matplotlib import rc
+#rc('font',**{'family':'sans-serif'})#,'sans-serif':['Helvetica']})
+## for Palatino and other serif fonts use:
+rc('font',**{'family':'serif', 'serif': ['Computer Modern Roman']})#,'serif':['Palatino']})
+rc('text', usetex=True)
 
 def convergence_tester():
     size = 5
@@ -232,7 +237,12 @@ def plot_convergence():
     #print(mean_history[1,:])
     #print('Meanhistory shape: '+ str(np.shape(mean_history)))
 
-    fig, ax = plt.subplots()
+    left = 0.07
+    plt.rcParams.update({'figure.subplot.top': 0.97, 'figure.subplot.bottom': 0.12, 'figure.subplot.left': left, 'figure.subplot.right': 1 - left})
+
+    fig = plt.figure()
+
+    ax = fig.add_subplot(111)
 
     last_step = np.where(mean_history.max(axis = 1) == 0)[0][0]
 
@@ -243,28 +253,32 @@ def plot_convergence():
         prob = mean_history[:last_step, i]
         if prob[-1] > 0.005:
             c = next(color)
-            lines += ax.plot(prob, c = c, lw = 5, label = i)
+            lines += ax.plot(prob, c = c, lw = 3, label = i)
 
-    big_size = 36
-    mid_size = 26
+    big_font = 30
+    small_font = 24
 
     #ax.legend(handles = lines, loc = 'upper right', fontsize= 14, ncol = 2, title = 'Ekvivalensklasser', title_fontsize = 25)
     
-    leg = plt.legend(handles = lines, loc = 'upper right', fontsize = mid_size, ncol = 2, title = 'Ekvivalensklasser', title_fontsize = big_size)
+    leg = plt.legend(handles = lines, loc = 'upper right', fontsize = small_font, ncol = 2, title = 'Ekvivalensklasser', title_fontsize = big_font)
     ax.add_artist(leg)
 
     #c = next(color)
-    conv_line = ax.axvline(x = conv_step, ls = '--', c = 'k', lw = 5)
+    conv_line = ax.axvline(x = conv_step, ls = '--', c = 'k', lw = 3)
     #conv_line.label = 'Felkriteriet'
 
-    ax.legend([conv_line], ['Steg nr {:.0f}'.format(conv_step)], loc = 'upper right', bbox_to_anchor = (0.682, 1), handlelength = 3,  fontsize = mid_size, title = 'Felkriteriet', title_fontsize = big_size)
+    ax.legend([conv_line], ['Steg nr {:.0f}'.format(conv_step)], loc = 'upper right', bbox_to_anchor = (0.79, 1), handlelength = 3,  fontsize = small_font, title = 'Felkriteriet', title_fontsize = big_font)
     
+    pad = 20.0
+
     ax.set_xlim(0, 1e6)
     ax.set_ylim(0, 1)
-    ax.set_xlabel('Steg', fontsize = big_size)
-    ax.set_ylabel('Sannolikhet', fontsize = big_size)
-    ax.tick_params(axis = 'x', labelsize = mid_size) 
-    ax.tick_params(axis = 'y', labelsize = mid_size) 
+    ax.set_xlabel('Steg', fontsize = big_font, labelpad=pad)
+    ax.set_ylabel('Sannolikhet', fontsize = big_font, labelpad=pad)
+    ax.tick_params(axis = 'x', labelsize = small_font)
+    ax.tick_params(axis = 'y', labelsize = small_font)
+    ax.ticklabel_format(style='sci', axis='x', scilimits=(5, 5))
+    ax.xaxis.offsetText.set_fontsize(small_font)
     print('Convergence of error_based at ' + str(conv_step) + ' steps.')
     plt.show()
 

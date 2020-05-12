@@ -13,6 +13,12 @@ from .mcmc import *
 
 from .toric_model import Toric_code
 
+from matplotlib import rc
+#rc('font',**{'family':'sans-serif'})#,'sans-serif':['Helvetica']})
+## for Palatino and other serif fonts use:
+rc('font',**{'family':'serif'})#,'serif':['Palatino']})
+rc('text', usetex=True)
+
 
 def geom_mean(series):
     array=series.to_numpy()
@@ -80,8 +86,7 @@ def Nc_tester(file_path, Nc_interval=[3,31]):
     stats.to_pickle(file_path)
 
 
-def Nc_visuals(files=6):
-    SEQ = 20
+def Nc_visuals(files=6, SEQ=20):
     file_base = 'output/Nc_data_SEQ{}_'.format(SEQ)
 
     stats = pd.DataFrame(columns=['Nc', 'time', 'steps'])
@@ -127,66 +132,25 @@ def Nc_visuals(files=6):
     time = agg_data['time_mean'].to_numpy()
     time_err = agg_data['time_std']
 
-    plt.rcParams.update({'font.size': 48, 'figure.subplot.top': 0.9, 'figure.subplot.bottom': 0.15, 'figure.subplot.right':0.98})
+    left = 0.13
+    plt.rcParams.update({'font.size': 48, 'figure.subplot.top': 0.91, 'figure.subplot.bottom': 0.18, 'figure.subplot.left': left, 'figure.subplot.right': 1 - left})
     plt.rc('axes', labelsize=60)#, titlesize=40) 
+
+    c = plt.cm.cubehelix(0.2)
 
     fig = plt.figure()
     ax = fig.add_subplot(111)
-    ax.errorbar(Nc_values, time, yerr=time_err, fmt='o--', ms=24, lw=8, capsize=16, capthick=8)#, label='Convergence time')
+    ax.errorbar(Nc_values, time, yerr=time_err, fmt='o--', ms=24, lw=8, capsize=16, capthick=8, c=c)#, label='Convergence time')
 
-    ax.set_xlabel('Nc')
-    ax.set_ylabel('Konvergenstid [s]')
+    pad = 20.0
+    ax.set_xlabel('\\texttt{Nc}', labelpad=pad)
+    ax.set_ylabel('Konvergenstid [s]', labelpad=pad)
     ax.set_ylim([-25, 170])
     ax.set_xlim([2, 32])
-    ax.set_title('SEQ = {}'.format(SEQ))
+    ax.set_title('SEQ = {}'.format(SEQ), pad=pad)
     #ax.legend(loc='upper right')
     #plt.savefig('plots/Nc_data_SEQ{}.png'.format(SEQ))
     plt.show()
-
-
-    '''
-    fig, host = plt.subplots(2)
-
-    ax = host[0]
-    converged = window['steps'] != -1
-
-    nbr_converged = agg_data['nbr_converged']
-    #yerr = [klds * (1 - 1/std_tvds), klds * (std_tvds - 1)]
-    #ax.errorbar(tols, klds, yerr=yerr, label='Distance')
-    ax.errorbar(Nc_values, agg_data['time_mean'].to_numpy(), yerr=agg_data['time_std'], label='Convergence time')
-    #ax.scatter(Nc_values, agg_data['time_mean'], label='Convergence_time')
-
-    #ax.set_title('Convergence steps and time as a function of Nc')
-    ax.set_xlabel('Nc')
-    #ax.set_xscale('log')
-    ax.set_ylabel('Time [s]')
-    ax.legend(loc='upper left')
-    ax.set_ylim(0, agg_data['time_mean'].max()*1.5)
-    #ax.set_yscale('log')
-    
-    par = ax.twinx()
-    par.bar(Nc_values, agg_data['steps_mean'].to_numpy(), width=1.6, color='gray', alpha=0.5, label='Convergence step')
-    par.set_ylabel('Convergence step')
-    par.legend(loc='upper right')
-    par.set_ylim(0, 5e5)
-    ax.set_zorder(2)
-    ax.patch.set_visible(False)
-
-    ax2 = host[1]
-    ax2.errorbar(Nc_values, agg_data['steptime_mean'].to_numpy(), yerr=agg_data['steptime_std'], label='Time per step')
-
-    ax2.set_xlabel('Nc')
-
-    ax2.set_ylabel('Step time [s]')
-    ax2.legend(loc='upper left')
-    ax2.set_ylim(0, agg_data['steptime_mean'].max()*1.3)
-    #ax.set_yscale('log')
-
-    #ax.set_xlim(min(Nc_values) * 0.7, max(Nc_values) * 1.05)
-    
-    #fig.suptitle('Kullback-Leibler distance from converged distribution')
-    #fig.suptitle('Convergence steps and time as a function of Nc')
-    '''
 
 
 def convergence_tester(file_path):
@@ -272,6 +236,8 @@ def conv_test_visuals(files=50):
     plot_cols = int(np.ceil(np.sqrt(SEQ_pts)))
     plot_rows = int(np.ceil(SEQ_pts / plot_cols))
 
+    left = 0.07
+    plt.rcParams.update({'figure.subplot.top': 0.97, 'figure.subplot.bottom': 0.12, 'figure.subplot.left': left, 'figure.subplot.right': 1 - left})
     #fig, axs = plt.subplots(plot_rows, plot_cols, constrained_layout=True)
     #fig, host = plt.subplots(plot_rows, plot_cols)
     fig = plt.figure()
@@ -281,16 +247,11 @@ def conv_test_visuals(files=50):
 
     ax = fig.add_subplot(111)
 
-    #params = {'font.size': 48, 'axes.labelsize': 36, 'axes.titlesize': 36, 'xtick.labelsize': 36, 'ytick.labelsize': 36}
-
-    #plt.rcParams.update({'image.cmap': 'cubehelix'})
-
-    big_font = 56
-    mid_font = 44
-    small_font = 32
+    big_font = 30
+    small_font = 24
 
     linestyles = ['-', '--', '-.', (0, (3, 1, 3, 1, 1, 1)), (0, (2, 1))]
-    color=iter(plt.cm.cubehelix(np.linspace(0, 1, SEQ_values.size + 1)))
+    color=iter(plt.cm.cubehelix(np.linspace(0.2, 0.7, SEQ_values.size)))
 
     for i, SEQ in enumerate(SEQ_values):
         c = next(color)
@@ -315,15 +276,15 @@ def conv_test_visuals(files=50):
         #ax = host[i]
         ls = linestyles[i]
         #ax.errorbar(epss, tvds, yerr=tvd_stds, label='Distance')
-        ax.plot(epss, tvds, label='SEQ = {}'.format(SEQ), lw = 8, ls = ls, c = c)
+        ax.plot(epss, tvds, label='SEQ = {}'.format(SEQ), lw = 4, ls = ls, c = c)
         #ax.plot(epss, tvd_min, label='Min distance')
         #ax.plot(epss, tvd_max, label='Max distance')
 
     if True:
-        plt.rcParams.update({'figure.subplot.top': 0.95, 'figure.subplot.bottom': 0.15, 'figure.subplot.right': 0.92, 'figure.subplot.left': 0.08})
+        pad = 20.0
         #ax.set_title('SEQ: ' + str(SEQ), fontsize = title_fontsize)
-        ax.set_xlabel('eps', fontsize=mid_font)
-        ax.set_ylabel('Distance', fontsize=mid_font)
+        ax.set_xlabel('\\texttt{eps}', fontsize=big_font, labelpad=pad)
+        ax.set_ylabel('Maximal distans', fontsize=big_font, labelpad=pad)
         #ax.legend(loc='upper left')
         #ax.set_yscale('log')
         ax.set_ylim(0.01, 0.025)
@@ -397,7 +358,85 @@ def conv_stats(file_path, p_error, SEQ=30, eps=0.006):
     crits_stats.to_pickle(file_path)
 
 
+def bias_tester(file_path, p_error, SEQ=30, eps=0.006):
+    size = 5
+    Nc = 19
+    TOPS = 20
+    tops_burn = 10
+    steps = 1000000
+
+    # Number of times every parameter configuration is tested
+    pop = 200
+
+    file_path = file_path.format(SEQ, eps).replace('0.', '0') + '.xz'
+
+    # Choose convergence criteria to test. Never did any other than error_based
+    crit = 'error_based'
+
+    # Create dataframe to hold results
+    crits_stats = pd.DataFrame(columns=['kld', 'tvd', 'steps', 'success', 'distr'])
+
+    for j in range(pop):
+        # Generate seed
+        init_toric = Toric_code(size)
+        init_toric.generate_random_error(p_error)
+
+        print('Generated seed:\n', init_toric.qubit_matrix)
+        
+        # Create uniformly sampled chain (morph) with same syndrome as seed
+        init_error_morph, _ = apply_random_logical(init_toric.qubit_matrix)
+        init_error_morph = apply_stabilizers_uniform(init_error_morph)
+
+        print('======================')
+        print('Morphed chain:\n', init_error_morph)
+
+        # Calculate equivalence classes of seed and morph
+        class_seed = define_equivalence_class(init_toric.qubit_matrix)
+        class_morph = define_equivalence_class(init_error_morph)
+        print('Seed class:', class_seed)
+        print('Morph class:', class_morph)
+
+        t1 = time.time()
+        # Run MCMC on seed
+        [distr_seed, steps_seed] = parallel_tempering_plus(init_toric, Nc, p=p_error, TOPS=TOPS, SEQ=SEQ, tops_burn=tops_burn, steps=steps, conv_criteria=crit, eps=eps)
+        distr_seed = np.divide(distr_seed.astype(np.float), 100)
+        print('=======================')
+        print('MCMC sampling time:', time.time() - t1)
+        print('Convergence Step:', steps_seed)
+
+        # Run MCMC on morph
+        init_toric.qubit_matrix = init_error_morph
+        t1 = time.time()
+        [distr_morph, steps_morph] = parallel_tempering_plus(init_toric, Nc, p=p_error, TOPS=TOPS, SEQ=SEQ, tops_burn=tops_burn, steps=steps, conv_criteria=crit, eps=eps)
+        distr_morph = np.divide(distr_morph.astype(np.float), 100)
+        print('MCMC sampling time:', time.time() - t1)
+        print('Convergence Step:', steps_morph)
+
+        # Error chain is succesfully corrected if most likely class is the same as the error chain class
+        success_seed = (np.argmax(distr_seed) == class_seed)
+        success_morph = (np.argmax(distr_morph) == class_morph)
+        success_cross = (np.argmax(distr_morph) == class_seed)
+        print('=======================')
+        print('Success seed:', success_seed)
+        print('Success morph', success_morph)
+        print('Success cross', success_cross)
+
+        # Use a dictionary for easy way to append the dataframe
+        tmp_dict = {'steps_seed': steps_seed, 'class_seed': class_seed, 'distr_seed': distr_seed, 
+                    'steps_morph': steps_morph, 'class_morph': class_morph, 'distr_morph': distr_morph}
+
+        crits_stats = crits_stats.append(tmp_dict, ignore_index=True)
+
+        if not j % 10:
+            crits_stats.to_pickle(file_path)
+
+    crits_stats.to_pickle(file_path)
+
+
 def conv_stats_visuals(files=50, SEQ=30, eps=0.006, p=0.1):
+
+    end = 0.06 if p == 0.1 else 0.08
+
     file_base = 'output/conv_stats_' + 'SEQ{}_eps{:.3f}_p{:.3f}_'.format(SEQ, eps, p)
     stats = pd.DataFrame(columns=['kld', 'tvd', 'steps', 'success', 'distr'])
     for i in range(files):
@@ -429,22 +468,26 @@ def conv_stats_visuals(files=50, SEQ=30, eps=0.006, p=0.1):
     print('Total runs:', tot_pts)
     print('Converged runs:', nbr_converged)
 
-    small_font = 36
-    mid_font = 48
+    small_font = 48
+    mid_font = 60
 
-    plt.rcParams.update({'figure.subplot.top': 0.95, 'figure.subplot.bottom': 0.15, 'figure.subplot.right': 0.9, 'figure.subplot.left': 0.1})
+    left = 0.12
+    plt.rcParams.update({'figure.subplot.top': 0.98, 'figure.subplot.bottom': 0.16, 'figure.subplot.left': left, 'figure.subplot.right': 1 - left})
+
+    c = plt.cm.cubehelix(0.2)
 
     fig = plt.figure()
     ax = fig.add_subplot(111)
-    ax.hist(y, bins=100, density=True, range=(0, 0.08))
+    ax.hist(y, bins=100, density=True, range=(0, end), color=c)
     ax.axvline(x = perc95, ls='--', lw=8, c='k', label=('$P_{95}$ = ' + '{:.3f}'.format(perc95)))
     
-    ax.set_xlabel('Distance', fontsize = mid_font)
-    ax.set_ylabel('Counts', fontsize = mid_font)
+    pad = 20.0
+    ax.set_xlabel('Maximal distans', fontsize = mid_font, labelpad = pad)
+    ax.set_ylabel('Antal', fontsize = mid_font, labelpad = pad)
     ax.tick_params(axis='both', which='major', labelsize=small_font)
     ax.ticklabel_format(style='sci', axis='x', scilimits=(-2, -2))
     ax.xaxis.offsetText.set_fontsize(small_font)
-    ax.legend(loc = 'upper right', fontsize = mid_font)
+    ax.legend(loc = 'upper right', fontsize = mid_font, handlelength=1)
 
     plt.show()
 
@@ -763,10 +806,11 @@ if __name__ == '__main__':
     #file_path = os.path.join(local_dir, 'conv_data_' + array_id + '.xz')
     #convergence_test(file_path)
 
-    #file_path = os.path.join(local_dir, 'conv_stats_p' + str(p_error).replace('.', '') + '_' + array_id + '.xz')
     #file_path = os.path.join(local_dir, 'conv_stats_SEQ{}_eps{:.3f}_' + 'p{:.3f}_{}'.format(p_error, array_id))
     #conv_stats(file_path, p_error)
-    conv_stats_visuals(p=0.1)
+    file_path = os.path.join(local_dir, 'bias_test_SEQ{}_eps{:.3f}_' + 'p{:.3f}_{}'.format(p_error, array_id))
+    bias_tester(file_path, p_error)
 
-    #Nc_visuals(files = 6)
+    #Nc_visuals(files = 6, SEQ = 8)
     #conv_test_visuals()
+    #conv_stats_visuals(p=0.1)
