@@ -380,46 +380,24 @@ def bias_tester(file_path, p_error, SEQ=30, eps=0.006):
         # Generate seed
         init_toric = Toric_code(size)
         init_toric.generate_random_error(p_error)
-
-        print('Generated seed:\n', init_toric.qubit_matrix)
         
         # Create uniformly sampled chain (morph) with same syndrome as seed
         init_error_morph, _ = apply_random_logical(init_toric.qubit_matrix)
         init_error_morph = apply_stabilizers_uniform(init_error_morph)
 
-        print('======================')
-        print('Morphed chain:\n', init_error_morph)
-
         # Calculate equivalence classes of seed and morph
         class_seed = define_equivalence_class(init_toric.qubit_matrix)
         class_morph = define_equivalence_class(init_error_morph)
-        print('Seed class:', class_seed)
-        print('Morph class:', class_morph)
 
-        t1 = time.time()
         # Run MCMC on seed
         [distr_seed, steps_seed] = parallel_tempering_plus(init_toric, Nc, p=p_error, TOPS=TOPS, SEQ=SEQ, tops_burn=tops_burn, steps=steps, conv_criteria=crit, eps=eps)
         distr_seed = np.divide(distr_seed.astype(np.float), 100)
-        print('=======================')
-        print('MCMC sampling time:', time.time() - t1)
-        print('Convergence Step:', steps_seed)
+
 
         # Run MCMC on morph
         init_toric.qubit_matrix = init_error_morph
-        t1 = time.time()
         [distr_morph, steps_morph] = parallel_tempering_plus(init_toric, Nc, p=p_error, TOPS=TOPS, SEQ=SEQ, tops_burn=tops_burn, steps=steps, conv_criteria=crit, eps=eps)
         distr_morph = np.divide(distr_morph.astype(np.float), 100)
-        print('MCMC sampling time:', time.time() - t1)
-        print('Convergence Step:', steps_morph)
-
-        # Error chain is succesfully corrected if most likely class is the same as the error chain class
-        success_seed = (np.argmax(distr_seed) == class_seed)
-        success_morph = (np.argmax(distr_morph) == class_morph)
-        success_cross = (np.argmax(distr_morph) == class_seed)
-        print('=======================')
-        print('Success seed:', success_seed)
-        print('Success morph', success_morph)
-        print('Success cross', success_cross)
 
         # Use a dictionary for easy way to append the dataframe
         tmp_dict = {'steps_seed': steps_seed, 'class_seed': class_seed, 'distr_seed': distr_seed, 
