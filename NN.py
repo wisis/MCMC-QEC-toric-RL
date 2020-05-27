@@ -73,6 +73,33 @@ class NN_17(nn.Module):
         self.linear1 = nn.Linear(200*int(output_from_conv)**2, number_of_actions)
         self.device = device
 
+# Network used for 3x3
+class NN_6(nn.Module):  
+    def __init__(self, system_size, number_of_actions, device):
+        super(NN_6, self).__init__()
+        self.conv1 = nn.Conv2d(2, 128, kernel_size=3, stride=1)
+        self.conv2 = nn.Conv2d(128, 128, kernel_size=3, stride=1, padding=1)
+        self.conv3 = nn.Conv2d(128, 120, kernel_size=3, stride=1, padding=1)
+        self.conv9 = nn.Conv2d(120, 111 , kernel_size=3, stride=1, padding=1)
+        self.conv10 = nn.Conv2d(111, 91 , kernel_size=3, stride=1, padding=1)
+        self.conv11 = nn.Conv2d(91, 64, kernel_size=3, stride=1)
+        output_from_conv = conv_to_fully_connected(system_size, 3, 0, 1)
+        self.linear1 = nn.Linear(64*int(output_from_conv)**2, 3)
+        self.device = device
+    def forward(self, x):
+        x = pad_circular(x, 1)
+        x = F.relu(self.conv1(x))
+        x = F.relu(self.conv2(x))
+        x = F.relu(self.conv3(x))
+        x = F.relu(self.conv9(x))
+        x = F.relu(self.conv10(x))
+        x = F.relu(self.conv11(x))
+        n_features = np.prod(x.size()[1:])
+        x = x.view(-1, n_features)
+        x = self.linear1(x)
+        return x
+
+
     def forward(self, x):
         x = pad_circular(x, 1)
         x = F.relu(self.conv1(x))

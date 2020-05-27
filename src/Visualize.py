@@ -1,6 +1,8 @@
 from .toric_model import Toric_code
 from .mcmc import *
 from .util import Action
+# Draws different operators on picture graph_Visual.png in directory plots
+# Size is set to d=5
 
 def visual(size):  # Function to create visualization of qubit matrix
     tc=Toric_code(size)

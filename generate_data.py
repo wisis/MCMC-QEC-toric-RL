@@ -75,18 +75,14 @@ def generate(file_path, params, timeout,
         df_distr = pd.DataFrame(df_eq_distr.astype(np.uint8),  # dtype for eq_distr? want uint16
                                 index=index_distr, columns=['data'])
 
-        # (suggestion) Add dataframes to temporary list to shorten computation time
-        # |
-        # V
-        # Add dataframes to list, we do not append to df here because of O(L) time complexity
+        # Add dataframes to temporary list to shorten computation time
+        
         df_list.append(df_qubit)
         df_list.append(df_distr)
 
-        # (suggestion) Every x iteration adds data to data file from temporary list
+        # Every x iteration adds data to data file from temporary list
         # and clears temporary list
-        # |
-        # V
-        # Add to df and save somewhat continuously ----------------------------
+        
         if (i + 1) % 3 == 0:
             df = df.append(df_list)
             df_list.clear()
@@ -133,10 +129,8 @@ if __name__ == '__main__':
     # Generate data
     generate(file_path, params, timeout)
 
-    # (suggestion) View data file
-    # |
-    # V
-    # View_all_data(file_path)
+    # View data file
+    
     iterator = MCMCDataReader(file_path, params['size'])
     while iterator.has_next():
         print('Datapoint nr: ' + str(iterator.current_index() + 1))
