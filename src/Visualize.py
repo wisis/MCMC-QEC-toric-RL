@@ -1,6 +1,8 @@
 from .toric_model import Toric_code
 from .mcmc import *
 from .util import Action
+# Draws different operators on picture graph_Visual.png in directory plots
+# Size is set to d=5
 
 def visual(size):  # Function to create visualization of qubit matrix
     tc=Toric_code(size)
@@ -16,10 +18,12 @@ def visual(size):  # Function to create visualization of qubit matrix
             tc.step(action)
             tc.plot_toric_code(tc.next_state,'Visual')
         elif choice==2:
-            operator=int(input('Operator?(X=2,Y=3):'))
+            operator=int(input('Operator?(X=1,Z=3):'))
             row=(int(input('Row:')))%d
             col=(int(input('Column:')))%d
-            apply_stabilizer(tc,operator,row,col)
+            tc.qubit_matrix,_=apply_stabilizer(tc.qubit_matrix,row,col,operator)
+            #action= Action(position = np.array([1, 0, 0]), action = 0)
+            #tc.step(action)
             tc.plot_toric_code(tc.next_state,'Visual')
         elif choice==3:
             operator=int(input('Operator?(I=0,X=1,Z=3):'))
@@ -48,5 +52,5 @@ def visual(size):  # Function to create visualization of qubit matrix
             tc.plot_toric_code(tc.next_state,'Visual')
 
 
-visual(3)           
+visual(5)           
         

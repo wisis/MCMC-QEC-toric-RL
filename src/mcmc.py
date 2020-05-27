@@ -23,33 +23,36 @@ class Chain:
         self.p = p
         self.p_logical = 0
         self.flag = 0
-
+    # runs iters number of steps of the metroplois-hastings algorithm
     def update_chain(self, iters):
         for _ in range(iters):
+            # apply logical or stabilizer with p_logical
             if rand.random() < self.p_logical:
                 new_matrix, qubit_errors_change = apply_random_logical(self.toric.qubit_matrix)
             else:
                 new_matrix, qubit_errors_change = apply_random_stabilizer(self.toric.qubit_matrix)
-
-            # r = r_chain(self.toric.qubit_matrix, new_matrix, self.p)
 
             # Avoid calculating r if possible. If self.p is 0.75 r = 1 and we accept all changes
             # If the new qubit matrix has equal or fewer errors, r >= 1 and we also accept all changes
             if self.p >= 0.75 or qubit_errors_change <= 0:
                 self.toric.qubit_matrix = new_matrix
                 continue
-
+            # acceptence ratio
             if rand.random() < ((self.p / 3.0) / (1.0 - self.p)) ** qubit_errors_change:
                 self.toric.qubit_matrix = new_matrix
-
+    
+    # plot toric code
     def plot(self, name, eq_class=None):
         self.toric.syndrom('next_state')
         self.toric.plot_toric_code(self.toric.next_state, name, eq_class)
 
 
-class MCMCDataReader:  # This is the object we crate to read a file during training
+# This is the object we crate to read a file during training
+class MCMCDataReader:  
     def __init__(self, file_path, size):
+        # file_path needs to be dataframe in pickle format
         self.__file_path = file_path
+        # size is the size of the toric code 
         self.__size = size
         try:
             self.__df = pd.read_pickle(file_path)
@@ -58,7 +61,7 @@ class MCMCDataReader:  # This is the object we crate to read a file during train
             print('No input file for MCMCDataReader')
         self.__current_index = 0
         
-
+    # return next errorchain,distribution pair
     def next(self):
         if self.__current_index < self.__capacity:
             qubit_matrix = self.__df.loc[self.__current_index].loc[0:1].to_numpy(copy=True).reshape((2, self.__size, self.__size))
@@ -74,7 +77,8 @@ class MCMCDataReader:  # This is the object we crate to read a file during train
     def current_index(self):
         return self.__current_index
 
-
+# parallel tempering method. returns equivalence class distribution distr 
+# and the number of steps taken when convergegence is reached, count
 def parallel_tempering_plus(init_toric, Nc=None, p=0.1, SEQ=5, TOPS=10, tops_burn=2, eps=0.001, n_tol=1e-4, steps=1000000, iters=10, conv_criteria='error_based'):
     size = init_toric.system_size
     Nc = Nc or size
@@ -166,10 +170,11 @@ def parallel_tempering_plus(init_toric, Nc=None, p=0.1, SEQ=5, TOPS=10, tops_bur
     distr = (np.divide(eq[since_burn], since_burn + 1) * 100).astype(np.uint8)
     return distr, count
 
-
+# wrapper for parallel_tempering_plus
 def parallel_tempering(init_toric, Nc=None, p=0.1, SEQ=5, TOPS=10, tops_burn=2, eps=0.001, n_tol=1e-4, steps=1000000, iters=10, conv_criteria='error_based'):
     distr, _ = parallel_tempering_plus(init_toric=init_toric, Nc=Nc, p=p, SEQ=SEQ, TOPS=TOPS, tops_burn=tops_burn, eps=eps, n_tol=n_tol, steps=steps, iters=iters, conv_criteria=conv_criteria)
     return distr
+
 
 def parallel_tempering_analysis(init_toric, Nc=None, p=0.1, SEQ=5, TOPS=10, tops_burn=2, eps=0.01, n_tol=1e-4, tvd_tol=0.05, kld_tol=0.5, steps=1000, iters=10, conv_criteria=None):
     size = init_toric.system_size
@@ -323,7 +328,7 @@ def parallel_tempering_analysis(init_toric, Nc=None, p=0.1, SEQ=5, TOPS=10, tops
 
     return [distr, eq, eq_full, ladder[0], resulting_burn_in, crits_distr]
 
-
+# convergence criteria used in paper and called ''felkriteriet''
 def conv_crit_error_based(nbr_errors_bottom_chain, since_burn, tops_accepted, SEQ, eps):  # Konvergenskriterium 1 i papper
     # last nonzero element of nbr_errors_bottom_chain is since_burn. Length of nonzero part is since_burn + 1
     l = since_burn + 1
@@ -339,7 +344,7 @@ def conv_crit_error_based(nbr_errors_bottom_chain, since_burn, tops_accepted, SE
     else:
         return False, False
 
-
+# alternative criteria
 def conv_crit_distr_based(eq, since_burn, tops_accepted, SEQ, norm_tol):
     # last nonzero element of eq is since_burn. Length of nonzero part is since_burn + 1
     l = since_burn + 1
@@ -355,7 +360,7 @@ def conv_crit_distr_based(eq, since_burn, tops_accepted, SEQ, norm_tol):
     else:
         return False, False
 
-
+# alternative criteria
 def conv_crit_majority_based(eq, since_burn, tops_accepted, SEQ):
     # last nonzero element of eq is since_burn. Length of nonzero part is since_burn + 1
     l = since_burn + 1
@@ -371,7 +376,7 @@ def conv_crit_majority_based(eq, since_burn, tops_accepted, SEQ):
     else:
         return False, False
 
-
+# alternative criteria
 def conv_crit_tvd_based(eq, since_burn, tops_accepted, SEQ, tol):
     # Total variational distance based convergence
 
@@ -388,7 +393,7 @@ def conv_crit_tvd_based(eq, since_burn, tops_accepted, SEQ, tol):
     else:
         return False, False
 
-
+# alternative criteria
 def conv_crit_kld_based(eq, since_burn, tops_accepted, SEQ, tol):
     # Kullback-Leibler based convergence
 
@@ -413,7 +418,7 @@ def conv_crit_kld_based(eq, since_burn, tops_accepted, SEQ, tol):
         return False, False
 
 
-@jit(nopython=True)
+@jit(nopython=True) # @jit needed for numba, r_flip calculates the quotient called r_flip
 def r_flip(qubit_lo, p_lo, qubit_hi, p_hi):
     ne_lo = 0
     ne_hi = 0
@@ -429,7 +434,8 @@ def r_flip(qubit_lo, p_lo, qubit_hi, p_hi):
         return True
     return False
 
-
+# applies a random logical operator and returns the resulting qubit_matrix
+#  and the change in the total number of error
 @jit(nopython=True)
 def apply_random_logical(qubit_matrix):
     size = qubit_matrix.shape[1]
@@ -465,16 +471,6 @@ def apply_logical_vertical(qubit_matrix, col=int, operator=int):  # col goes fro
     else:
         layer = 0
 
-    '''
-    qubit_matrix_layers = np.full(size, layer, dtype=int)
-    rows = np.arange(size)
-    cols = np.full(size, col, dtype=int)
-    old_operators = qubit_matrix[qubit_matrix_layers, rows, cols]
-    new_operators = rule_table[operator][old_operators]
-    result_qubit_matrix = qubit_matrix
-    result_qubit_matrix[qubit_matrix_layers, rows, cols] = new_operators
-    '''
-
     # Have to make copy, else original matrix is changed
     result_qubit_matrix = np.copy(qubit_matrix)
     error_count = 0
@@ -498,16 +494,6 @@ def apply_logical_horizontal(qubit_matrix, row=int, operator=int):  # col goes f
         layer = 0
     else:
         layer = 1
-
-    '''
-    qubit_matrix_layers = np.full(size, layer, dtype=int)
-    rows = np.full(size, row, dtype=int)
-    cols = np.arange(size)
-    old_operators = qubit_matrix[qubit_matrix_layers, rows, cols]
-    new_operators = rule_table[operator][old_operators]
-    result_qubit_matrix = qubit_matrix
-    result_qubit_matrix[qubit_matrix_layers, rows, cols] = new_operators
-    '''
 
     # Have to make copy, else original matrix is changed
     result_qubit_matrix = np.copy(qubit_matrix)
@@ -614,7 +600,7 @@ def apply_random_stabilizer(qubit_matrix):
         operator = 3
     return apply_stabilizer(qubit_matrix, row, col, operator)
 
-
+# applies stabilizers with probability p on each individual plaquette and vertex
 def apply_stabilizers_uniform(qubit_matrix, p=0.5):
     size = qubit_matrix.shape[1]
     result_qubit_matrix = np.copy(qubit_matrix)

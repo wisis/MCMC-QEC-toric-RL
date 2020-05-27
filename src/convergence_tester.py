@@ -19,17 +19,17 @@ from matplotlib import rc
 rc('font',**{'family':'serif'})#,'serif':['Palatino']})
 rc('text', usetex=True)
 
-
+# geometric mean of array of numbers: series
 def geom_mean(series):
     array=series.to_numpy()
     return np.exp(np.average(np.log(array)))
 
-
+# geometric std of array of numbers: series
 def geom_std(series):
     array=series.to_numpy()
     return np.exp(np.std(np.log(array)))
 
-
+# ''maximum distance'' for arrays of numbers a & b
 def tvd(a, b):
     nonzero = np.logical_and(a != 0, b != 0)
     if np.any(nonzero):
@@ -37,7 +37,7 @@ def tvd(a, b):
     else:
         return -1
 
-
+# kulback-leibler distance forr arrays of numbers a & b
 def kld(a, b):
     nonzero = np.logical_and(a != 0, b != 0)
     if np.any(nonzero):
@@ -46,8 +46,10 @@ def kld(a, b):
     else:
         return -1
 
-
+# generates datafile to determine optimal number of chains in parallel tempering, Nc
+#  returns three columns with, Nc, time for convergence and steps for convergence
 def Nc_tester(file_path, Nc_interval=[3,31]):
+    # set parameters for parallel tempering
     size = 5
     p_error = 0.15
     SEQ = 8
@@ -59,19 +61,23 @@ def Nc_tester(file_path, Nc_interval=[3,31]):
     iters = 10
     conv_criteria='error_based'
 
+    # create dataframe
     stats = pd.DataFrame(columns=['Nc', 'time', 'steps'])
 
     # Number of times every parameter configuration is tested
     pop = 10
 
+    # create array of toric_codes to be evaluated
     t_list = []
     for i in range(pop):
         t = Toric_code(5)
         t.generate_random_error(p_error)
         t_list.append(t)
 
+    # k=# different Nc-values to be tested
     k=(Nc_interval[1] - Nc_interval[0]) / 2 + 1
 
+    # for each Nc-value run parallel_tempering with set prameters and add Nc,time,steps to file
     for Nc in range(Nc_interval[0], Nc_interval[1], 2):
         print('Nc =', Nc, '/ ', Nc_interval[1])
         for pt in range(pop):
@@ -155,7 +161,7 @@ def Nc_visuals(files=6, SEQ=20):
     #plt.savefig('plots/Nc_data_SEQ{}.png'.format(SEQ))
     plt.show()
 
-
+# Tests maximum distance and kld for testing convergence criteria 'error_based' and saves to a file
 def convergence_tester(file_path):
     size = 5
     p_error = 0.15
@@ -178,6 +184,7 @@ def convergence_tester(file_path):
     #crits_stats = {crit: [[], [], [], [], []] for crit in criteria}
     crits_stats = pd.DataFrame(columns=['SEQ', 'eps', 'kld', 'tvd', 'steps'])
 
+    # runs parallel tempering for each SEQ and eps-value and saves the data
     for SEQ in SEQ_list:
         for eps in eps_list:
             for j in range(pop):
@@ -338,7 +345,8 @@ def conv_test_visuals():
 
     plt.show()
 
-
+# Runs paralell tempering multiple times for a set SEQ and eps and returns the data in a file. 
+# Made to create maximal distance distribution
 def conv_stats(file_path, p_error, SEQ=30, eps=0.006):
     size = 5
     Nc = 19
@@ -541,198 +549,6 @@ def bias_stats(p):
     plt.show()
 
 
-# Runs test_numeric_distribution_convergence for an array of different tolerences
-def compare_graphic(convergence_criteria='error_based',tolerences=[1.6,0.8,0.4,0.2,0.1,0.05],SEQs=[2,1,0]):
-    x = tolerences
-    y = np.zeros(len(tolerences))
-    y2 = np.zeros(len(tolerences))
-    for j in range(len(SEQs)):
-        for i in range(len(tolerences)):
-            [_,_,_,tmp,time_temp]=test_numeric_distribution_convergence(convergence_criteria,SEQs[j],x[i],x[i],False)
-            y[i]=tmp
-            y2[i]=time_temp*0.000001
-        
-        subplot_size=np.ceil(np.sqrt(2*len(SEQs)))
-        plt.subplot(subplot_size,subplot_size,2*j+1)
-        plt.title(convergence_criteria + "SEQ=" +str(SEQs[j])) 
-        plt.xlabel("tolerence") 
-        plt.ylabel("max diff") 
-        plt.plot(x,y) 
-
-        plt.subplot(subplot_size,subplot_size,2*j+2)
-        plt.title(convergence_criteria + "SEQ=" +str(SEQs[j])) 
-        plt.xlabel("tol.") 
-        plt.ylabel("# steps (e+5)") 
-        plt.plot(x,y2) 
-    plt.show()
-
-
-# Returns an array [nmbr_1st,nmbr_2nd,nmbr_3rd,max_1], and saves the same data in .txt files
-# For a given convergence criteria and tolerence. nmbr_1st is the number of different seeds( maximum 16) which converges to
-# a distribution that has the same most likely equivalence class (1st likely). Same way for nmbr_2nd and nmbr_3rd.
-# max_1 is the maximum total variational distance between the different equivalence classes.
-def test_numeric_distribution_convergence(convergence_criteria='distr_based',SEQ=2,eps=0.1,n_tol=0.05,bool=False):
-    arr, time_array=test_distribution_convergence(convergence_criteria,SEQ,eps,n_tol,False)
-    #arr=np.ndarray([[0.5,0.3,0.05,0.15,0,1.15,0,0,0,0,0,0,0,0,0,0],[0.5,0.3,0.2,0,0,0,0,0,0,0,0,0,0,0,0,0],[0.5,0.3,0.2,0,0,0,0,0,0,0,0,0,0,0,0,0],[0.5,0.3,0.2,0,0,0,0,0,0,0,0,0,0,0,0,0],[0.5,0.3,0.2,0,0,0,0,0,0,0,0,0,0,0,0,0],[0.5,0.3,0.2,0,0,0,0,0,0,0,0,0,0,0,0,0],[0.5,0.3,0.2,0,0,0,0,0,0,0,0,0,0,0,0,0],[0.5,0.3,0.2,0,0,0,0,0,0,0,0,0,0,0,0,0],[0.5,0.3,0.2,0,0,0,0,0,0,0,0,0,0,0,0,0],[0.5,0.3,0.2,0,0,0,0,0,0,0,0,0,0,0,0,0],[0.5,0.3,0.2,0,0,0,0,0,0,0,0,0,0,0,0,0],[0.5,0.3,0.2,0,0,0,0,0,0,0,0,0,0,0,0,0],[0.5,0.3,0.2,0,0,0,0,0,0,0,0,0,0,0,0,0],[0.5,0.3,0.2,0,0,0,0,0,0,0,0,0,0,0,0,0],[0.5,0.3,0.2,0,0,0,0,0,0,0,0,0,0,0,0,0],[0.5,0.3,0.2,0,0,0,0,0,0,0,0,0,0,0,0,0]])
-    nmbr_1st=0
-    nmbr_2nd=0
-    nmbr_3rd=0
-    max_1=0
-    max_time=max(time_array)
-    # temp can be viewed as 16 different counters
-    temp=np.zeros(16)
-    temp2=0
-    count=0
-
-    # The amount of different pairs of distributions to be compared is sum 1-->16 =136
-    max_temp=np.zeros(136)
-    for i in range(16):
-        temp2=arr[i]
-        # idx is index of the maximum element of the i:th distribution
-        [idx]=np.where(temp2==np.ndarray.max(temp2))
-        # increase counter number idx by one
-        temp[idx]=temp[idx]+1
-
-        # Check total variatonal distance for all different seed combinations.
-        for j in range(i,16):
-            a=np.zeros(16)
-            for k in range(16):
-                #
-                a[k]=np.absolute(arr[j][k]-arr[i][k])
-                #DEBUG DEBUG DEBUG DEBUG DEBUG DEBUG DEBUG DEBUG DEBUG 
-                #if j==12 and i==10:     
-                    #print("Element 1: " + str(arr[j][k]))
-                    #print("Element 2: " + str(arr[i][k]))
-                    #kon=arr[j][k]-arr[i][k]
-                    #print("Element 1 - Element 2: "+ str(kon))
-                    #print("Absolute of difference: " + str(np.absolute(kon)))
-                    #print("Absolute of difference,a[k]: " + str(a[k]))  
-            
-            # max_temp[count] is the total variational distance of the count:th combination.
-            # Count goes from 0 to 135        
-            max_temp[count]=max(a)
-            count+=1 
-    # max_1 is the maximum tvd of all 136 combinations.
-    max_1=max(max_temp)
-    # nmbr_1st is the number of different seeds( maximum 16) which converges to
-    # a distribution that has the same most likely equivalence class (1st most likely)
-    nmbr_1st=max(temp)
-
-    # Reset temp to only zeros
-    temp=np.zeros(16)
-    for i in range(16):
-        temp2=arr[i]
-        # idx is index of the maximum element of the i:th distribution
-        [idx]=np.where(temp2==np.ndarray.max(temp2))
-        # set maximum to 0
-        temp2[idx]=0
-        # idx is index of the 2nd largest element of the i:th distribution
-        [idx]=np.where(temp2==np.ndarray.max(temp2))
-        # increase counter number idx by one
-        temp[idx]=temp[idx]+1
-    # nmbr_2nd is the number of different seeds( maximum 16) which converges to
-    # a distribution that has the same second most likely equivalence class (2nd most likely)
-    nmbr_2nd=max(temp)
-
-    # Reset temp to only zeros
-    temp=np.zeros(16)
-    for i in range(16):
-        temp2=arr[i]
-        # idx is index of the 2nd largest element of the i:th distribution
-        [idx]=np.where(temp2==np.ndarray.max(temp2))
-        # set 2nd largest element to 0
-        temp2[idx]=0
-        # idx is index of the 3rd largest element of the i:th distribution
-        [idx]=np.where(temp2==np.ndarray.max(temp2))
-        # increase counter number idx by one
-        temp[idx]=temp[idx]+1
-
-    # nmbr_3rd is the number of different seeds( maximum 16) which converges to
-    # a distribution that has the same third most likely equivalence class (3rd most likely)
-    nmbr_3rd=max(temp)
-
-    if convergence_criteria=='error_based':
-        # Create new file eps value in the file name
-        f=open("data_" + convergence_criteria + '_eps_' + str(eps) + '_SEQ_' + str(SEQ) + ".txt","w")
-        # Write the used convergence criteria
-        f.write("Convergence criteria: " + convergence_criteria)
-        # Write the used tolerence
-        f.write('\n eps= ' + str(eps) + '\n SEQ=' + str(SEQ))
-        # Write the time it takes
-        f.write("\nMaximum number of steps for convergence: " +str(max_time) + "\n \n")
-    elif convergence_criteria=='distr_based':
-        f=open("data_" + convergence_criteria + '_ntol_' + str(n_tol) + '_SEQ_' + str(SEQ) + ".txt","w")
-        f.write("Convergence criteria: " + convergence_criteria)
-        f.write('\n ntol= ' + str(n_tol) + '\n SEQ= ' + str(SEQ))
-        f.write("\nMaximum number of steps for convergence: " +str(max_time) + "\n \n")
-
-    #Write the different critera parameters in the file adn close it
-    f.write("Number of equivalent 1st: " + str(nmbr_1st) + "\nNumber of equivalent 2nd: "+ str(nmbr_2nd) + "\nNumber of equivalent 3rd: "+ str(nmbr_3rd))
-    f.write("\n\nMax difference: " + str(max_1))
-    f.close()
-    #Also return the different critera parameters
-    return [nmbr_1st,nmbr_2nd,nmbr_3rd,max_1,max_time]
-
-
-# Returns list with 16 rows. 
-# Each row contains the equivalence class distribution. 
-# Each row uses a seed from a different equivalence class.
-def test_distribution_convergence(convergence_criteria='distr_based',SEQ=2,eps=0.1,n_tol=0.05,boll=False):
-    array_of_distributions=[]
-    array_of_time=np.zeros(16)
-    #Does paralell tempering for each of the 16 equivalence classes
-    for i in range(16):
-        # Choose seed
-        t = seed(i+1)
-        temp,count= parallel_tempering_plus(t, Nc=9, p=0.1, SEQ=SEQ, TOPS=10, tops_burn=2, eps=eps,n_tol=n_tol, steps=1000000, iters=10, conv_criteria=convergence_criteria)
-        #convert to int32 because parallel_tempering returns only unsigned ints from 0 to 256
-        temp=temp.astype(np.int32)
-        #add the distribution from the current seed to the list to be returned
-        array_of_distributions += [temp]
-        array_of_time[i]=count
-    
-    #boolean parameter boll, if boll==True, then prints the distributions of the 16 equivalence classes as 16 subplots.
-    if boll:
-        x = [ 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16] 
-        for i in range(16):
-            height = array_of_distributions[i]
-            height=np.divide(height,np.sum(height))
-            tick_label = ['1', '2', '3', '4', '5','6','7','8','9','10','11','12','13','14','15','16']
-            plt.subplot(4,4,i+1) 
-            plt.bar(x, height, tick_label = tick_label, width = 0.8, color = ['red', 'green'])
-            axes = plt.gca()
-            axes.set_ylim([0,1])
-            plt.xlabel('Equivalence classes') 
-            plt.ylabel('y - axis') 
-            plt.title('') 
-        plt.show() 
-
-    return array_of_distributions, array_of_time
-
-
-def time_all_seeds(convergence_criteria='distr_based',eps=0.1,n_tol=0.5):
-    torr=seed(1)
-    print('Equivalence class of seed(1): ' + str(define_equivalence_class(torr.qubit_matrix)))
-    time_array=[]
-    for i in range(16):
-        t=seed(i+1)
-        #tchain.toric.plot_toric_code(tchain.toric.current_state,"Hej")
-        time_1=time.time()
-        parallel_tempering(t, 9, 0.1, 2, 10, eps,n_tol, 1000, 10, convergence_criteria)
-        time_2=time.time()
-        time_array+=[(time_2-time_1)]
-    x = [1, 2, 3, 4, 5,6,7,8,9,10,11,12,13,14,15,16] 
-    height = time_array
-    tick_label = ['1', '2', '3', '4', '5','6','7','8','9','10','11','12','13','14','15','16'] 
-    plt.bar(x, height, tick_label = tick_label, 
-        width = 0.8, color = ['red', 'green'])
-    plt.xlabel('Equivalence classes') 
-    plt.ylabel('y - axis') 
-    plt.title('Time for converging from different equivalence classes') 
-    plt.show() 
-    return time_array
-
-
 #Initial seed. Is used in seed(number) to generate seeds from all 16 eq-classes
 def in_seed(seed_number):
     toric=Toric_code(5)
@@ -740,7 +556,8 @@ def in_seed(seed_number):
     if n<1 or n>2:
         print('You tried to get a non-valid seed')
     elif n==1:
-        action = Action(position = np.array([0, 2, 0]), action = 1) #([vertical=0,horisontal=1, y-position, x-position]), action = x=1,y=2,z=3,I=0)
+        #([vertical=0,horisontal=1, y-position, x-position]), action = x=1,y=2,z=3,I=0)
+        action = Action(position = np.array([0, 2, 0]), action = 1) 
         toric.step(action)#1
         action = Action(position = np.array([0, 0, 2]), action = 2)
         toric.step(action)#2
@@ -750,7 +567,7 @@ def in_seed(seed_number):
         toric.step(action)#4
         action = Action(position = np.array([0, 1, 4]), action = 1)
         toric.step(action)#5
-        action = Action(position = np.array([1, 2, 3]), action = 2) #([vertical=0,horisontal=1, y-position, x-position]), action = x=1,y=2,z=3,I=0)
+        action = Action(position = np.array([1, 2, 3]), action = 2) 
         toric.step(action)#6
         action = Action(position = np.array([0, 2, 2]), action = 2)
         toric.step(action)#7
@@ -766,7 +583,7 @@ def in_seed(seed_number):
         toric.step(action)#2
         return toric
 
-
+# returns toric_code seed from in_seed() that belongs to equivalence class number
 def seed(number):
     toric=in_seed(2)
     n=number
