@@ -19,7 +19,7 @@ from .toric_model import Action
 from .toric_model import Perspective
 from .Replay_memory import Replay_memory_uniform, Replay_memory_prioritized
 # import networks
-from NN import NN_11, NN_17,NN_6
+from NN import NN_11, NN_17,NN_11_mod
 from ResNet import ResNet18, ResNet34, ResNet50, ResNet101, ResNet152
 from .util import incremental_mean, convert_from_np_to_tensor, Transition
 # import mcmc tools

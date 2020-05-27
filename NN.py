@@ -74,7 +74,7 @@ class NN_17(nn.Module):
         self.device = device
 
 # Network used for 3x3
-class NN_6(nn.Module):  
+class NN_11_mod(nn.Module):  
     def __init__(self, system_size, number_of_actions, device):
         super(NN_6, self).__init__()
         self.conv1 = nn.Conv2d(2, 128, kernel_size=3, stride=1)
