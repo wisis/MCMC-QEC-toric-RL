@@ -170,12 +170,15 @@ def parallel_tempering_plus(init_toric, Nc=None, p=0.1, SEQ=5, TOPS=10, tops_bur
     distr = (np.divide(eq[since_burn], since_burn + 1) * 100).astype(np.uint8)
     return distr, count
 
+
 # wrapper for parallel_tempering_plus
 def parallel_tempering(init_toric, Nc=None, p=0.1, SEQ=5, TOPS=10, tops_burn=2, eps=0.001, n_tol=1e-4, steps=1000000, iters=10, conv_criteria='error_based'):
     distr, _ = parallel_tempering_plus(init_toric=init_toric, Nc=Nc, p=p, SEQ=SEQ, TOPS=TOPS, tops_burn=tops_burn, eps=eps, n_tol=n_tol, steps=steps, iters=iters, conv_criteria=conv_criteria)
     return distr
 
 
+# Runs parallel tempering, but doesn't stop when a convergence criteria is fulfilled. Instead, many criterias can be tested simultaneously
+# Runs until for "steps" number of steps
 def parallel_tempering_analysis(init_toric, Nc=None, p=0.1, SEQ=5, TOPS=10, tops_burn=2, eps=0.01, n_tol=1e-4, tvd_tol=0.05, kld_tol=0.5, steps=1000, iters=10, conv_criteria=None):
     size = init_toric.system_size
     Nc = Nc or size
@@ -185,15 +188,16 @@ def parallel_tempering_analysis(init_toric, Nc=None, p=0.1, SEQ=5, TOPS=10, tops
     if not Nc % 2:
         print('Number of chains was not odd.')
 
+    # Warning if TOPS is too small
     if tops_burn >= TOPS:
         print('tops_burn has to be smaller than TOPS')
 
     ladder = []  # ladder to store all chains
     p_end = 0.75  # p at top chain as per high-threshold paper
-    tops0 = 0
-    resulting_burn_in = 0
-    since_burn = 0
-    nbr_errors_bottom_chain = np.zeros(steps)
+    tops0 = 0  # number of error chains that have traveled from top chain to bottom chain
+    resulting_burn_in = 0  # Number of steps taken for tops0 to reach tops_burn
+    since_burn = 0  # Number of steps taken since tops0 reached top_burn
+    nbr_errors_bottom_chain = np.zeros(steps)  # number of errors in bottom chain
     eq = np.zeros([steps, 16], dtype=np.uint32)  # list of class counts after burn in
     eq_full = np.zeros([steps, 16], dtype=np.uint32)  # list of class counts from start
     # might only want one of these, as (eq_full[j] - eq[j - resulting_burn_in]) is constant
@@ -224,7 +228,7 @@ def parallel_tempering_analysis(init_toric, Nc=None, p=0.1, SEQ=5, TOPS=10, tops
         # run mcmc for each chain [steps] times
         for i in range(Nc):
             ladder[i].update_chain(iters)
-        # current_eq attempt flips from the top down
+        # attempt flips from the top down
         ladder[-1].flag = 1
         for i in reversed(range(Nc - 1)):
             if r_flip(ladder[i].toric.qubit_matrix, ladder[i].p, ladder[i + 1].toric.qubit_matrix, ladder[i + 1].p):
@@ -234,6 +238,7 @@ def parallel_tempering_analysis(init_toric, Nc=None, p=0.1, SEQ=5, TOPS=10, tops
             tops0 += 1
             ladder[0].flag = 0
 
+        # Equivalence class of bottom chain
         current_eq = define_equivalence_class(ladder[0].toric.qubit_matrix)
 
         # current class count is previous class count + the current class
@@ -241,18 +246,23 @@ def parallel_tempering_analysis(init_toric, Nc=None, p=0.1, SEQ=5, TOPS=10, tops
         eq_full[j] = eq_full[j - 1]
         eq_full[j][current_eq] += 1
 
+        # Check if burn in phase is complete
         if tops0 >= tops_burn:
+            # Update since_burn
             since_burn = j - resulting_burn_in
-
+            # Increment counts of equivalence classes according to current_eq
             eq[since_burn] = eq[since_burn - 1]
             eq[since_burn][current_eq] += 1
+            # Update number of errors in bottom chain
             nbr_errors_bottom_chain[since_burn] = np.count_nonzero(ladder[0].toric.qubit_matrix)
 
         else:
-            # number of steps until tops0 = 2
+            # number of steps until tops0 >= tops_burn
             resulting_burn_in += 1
 
+        # Evaluate convergence criteria every tenth step
         if tops0 >= TOPS and not since_burn % 10:
+            # Evaluate error_based
             if 'error_based' in conv_criteria and not crits_distr['error_based'][2]:
                 tops_accepted = tops0 - tops_distr['error_based']
                 accept, crits_distr['error_based'][2] = conv_crit_error_based(nbr_errors_bottom_chain, since_burn, tops_accepted, SEQ, eps)
@@ -265,6 +275,7 @@ def parallel_tempering_analysis(init_toric, Nc=None, p=0.1, SEQ=5, TOPS=10, tops
                 if crits_distr['error_based'][2]:
                     crits_distr['error_based'][1] = since_burn
 
+            # Evaluate distr_based
             if 'distr_based' in conv_criteria and not crits_distr['distr_based'][2]:
                 tops_accepted = tops0 - tops_distr['distr_based']
                 accept, crits_distr['distr_based'][2] = conv_crit_distr_based(eq, since_burn, tops_accepted, SEQ, n_tol)
@@ -277,6 +288,7 @@ def parallel_tempering_analysis(init_toric, Nc=None, p=0.1, SEQ=5, TOPS=10, tops
                 if crits_distr['distr_based'][2]:
                     crits_distr['distr_based'][1] = since_burn
 
+            # Evaluate majority_based
             if 'majority_based' in conv_criteria and not crits_distr['majority_based'][2]:
                 # returns the majority class that becomes obvious right when convergence is reached
                 tops_accepted = tops0 - tops_distr['majority_based']
@@ -290,6 +302,7 @@ def parallel_tempering_analysis(init_toric, Nc=None, p=0.1, SEQ=5, TOPS=10, tops
                 if crits_distr['majority_based'][2]:
                     crits_distr['majority_based'][1] = since_burn
 
+            # Evaulate tvd_based
             if 'tvd_based' in conv_criteria and not crits_distr['tvd_based'][2]:
                 tops_accepted = tops0 - tops_distr['tvd_based']
                 accept, crits_distr['tvd_based'][2] = conv_crit_tvd_based(eq, since_burn, tops_accepted, SEQ, tvd_tol)
@@ -302,6 +315,7 @@ def parallel_tempering_analysis(init_toric, Nc=None, p=0.1, SEQ=5, TOPS=10, tops
                 if crits_distr['tvd_based'][2]:
                     crits_distr['tvd_based'][1] = since_burn
 
+            # Evaluate kld_based
             if 'kld_based' in conv_criteria and not crits_distr['kld_based'][2]:
                 tops_accepted = tops0 - tops_distr['kld_based']
                 accept, crits_distr['kld_based'][2] = conv_crit_kld_based(eq, since_burn, tops_accepted, SEQ, kld_tol)
@@ -318,6 +332,7 @@ def parallel_tempering_analysis(init_toric, Nc=None, p=0.1, SEQ=5, TOPS=10, tops
     for i in range(Nc):
         ladder[i].plot('Chain_' + str(i), define_equivalence_class(ladder[i].toric.qubit_matrix))
 
+    # Convert resulting final distribution to 8 bit int
     distr = (np.divide(eq[since_burn], since_burn + 1) * 100).astype(np.uint8)
 
     for crit in conv_criteria:
@@ -326,6 +341,7 @@ def parallel_tempering_analysis(init_toric, Nc=None, p=0.1, SEQ=5, TOPS=10, tops
             # Calculate converged distribution from converged class count
             crits_distr[crit][0] = np.divide(eq[crits_distr[crit][1]], crits_distr[crit][1] + 1)  # Divide by "index+1" since first index is 0
 
+    # Return resulting parameters
     return [distr, eq, eq_full, ladder[0], resulting_burn_in, crits_distr]
 
 # convergence criteria used in paper and called ''felkriteriet''
